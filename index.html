@@ -608,6 +608,7 @@
     <div class="tabs" id="viewTabs">
       <button type="button" class="tab active" data-tab="data" onclick="switchTab('data')">Data</button>
       <button type="button" class="tab" data-tab="compare" onclick="switchTab('compare')">Compare Signups</button>
+      <button type="button" class="tab" data-tab="config" onclick="switchTab('config')">Signups Config</button>
     </div>
 
     <!-- ── Data view ─────────────────────────────────────────────── -->
@@ -626,10 +627,16 @@
       </div>
     </div>
 
+    <!-- ── Signups Config view ───────────────────────────────────── -->
+    <div id="configView" class="hidden">
+      <div class="sheet-config" id="sheetConfigCard"></div>
+      <p class="hint" style="color:var(--muted);font-size:0.85rem;margin-top:8px">
+        Changes are auto-saved to this browser and persist across reloads. Each event has its own config.
+      </p>
+    </div>
+
     <!-- ── Compare view ──────────────────────────────────────────── -->
     <div id="compareView" class="hidden">
-      <div class="sheet-config" id="sheetConfigCard"></div>
-
       <div class="compare-header">
         <h3 id="compareTitle">Compare Form Signups &harr; TMS</h3>
         <button type="button" class="btn btn-primary" id="loadSignupsBtn" onclick="loadAndCompare()">&#128260; Load Signups</button>
@@ -1023,16 +1030,21 @@ function renderCurrentEvent() {
     document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
   }
 
-  renderSheetConfig();
-
-  // Render data/compare based on active tab
+  // Render based on active tab
+  var dataView = document.getElementById('dataView');
+  var compareView = document.getElementById('compareView');
+  var configView = document.getElementById('configView');
+  dataView.classList.add('hidden');
+  compareView.classList.add('hidden');
+  configView.classList.add('hidden');
   if (s.activeTab === 'compare') {
-    document.getElementById('dataView').classList.add('hidden');
-    document.getElementById('compareView').classList.remove('hidden');
+    compareView.classList.remove('hidden');
     renderCompareResults();
+  } else if (s.activeTab === 'config') {
+    configView.classList.remove('hidden');
+    renderSheetConfig();
   } else {
-    document.getElementById('dataView').classList.remove('hidden');
-    document.getElementById('compareView').classList.add('hidden');
+    dataView.classList.remove('hidden');
     renderTable();
   }
 }
@@ -1187,20 +1199,26 @@ function findZipEntry(zip, names, regex) {
 })();
 
 // ────────────────────────────────────────────────────────────────────
-// Tab switching — 'data' | 'compare'
+// Tab switching — 'data' | 'compare' | 'config'
 // ────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   S().activeTab = tab;
   saveState();
   setActiveTab(tab);
+  var dataView = document.getElementById('dataView');
+  var compareView = document.getElementById('compareView');
+  var configView = document.getElementById('configView');
+  dataView.classList.add('hidden');
+  compareView.classList.add('hidden');
+  configView.classList.add('hidden');
   if (tab === 'compare') {
-    document.getElementById('dataView').classList.add('hidden');
-    document.getElementById('compareView').classList.remove('hidden');
-    renderSheetConfig();
+    compareView.classList.remove('hidden');
     renderCompareResults();
+  } else if (tab === 'config') {
+    configView.classList.remove('hidden');
+    renderSheetConfig();
   } else {
-    document.getElementById('dataView').classList.remove('hidden');
-    document.getElementById('compareView').classList.add('hidden');
+    dataView.classList.remove('hidden');
     renderTable();
   }
 }
@@ -1715,15 +1733,26 @@ function renderSheetConfig() {
          + '</div></div>';
   }
 
-  html += '<div class="row" style="display:flex;gap:8px;margin-top:8px">'
-       + '<button type="button" class="btn btn-primary btn-sm" onclick="saveSheetConfig()">Save config</button>'
+  html += '<div class="row" style="display:flex;gap:8px;margin-top:8px;align-items:center">'
+       + '<button type="button" class="btn btn-primary btn-sm" onclick="saveSheetConfig()">Save &amp; apply</button>'
        + '<button type="button" class="btn btn-outline btn-sm" onclick="resetSheetConfig()">Reset to defaults</button>'
+       + '<span id="cfgSavedIndicator" style="font-size:0.8rem;color:var(--success);font-weight:600;display:none">\u2713 Auto-saved</span>'
        + '</div>';
 
   box.innerHTML = html;
+
+  // Wire up auto-save on change for every field in the config so the
+  // user doesn't have to hit "Save & apply" manually. The button remains
+  // for users who want an explicit confirm.
+  var inputs = box.querySelectorAll('input');
+  for (var i = 0; i < inputs.length; i++) {
+    inputs[i].addEventListener('input', function() {
+      saveSheetConfig(true);
+    });
+  }
 }
 
-function saveSheetConfig() {
+function saveSheetConfig(silent) {
   var s = S();
   var cfg = s.sheetConfig;
   var urlEl = document.getElementById('cfgSheetUrl');
@@ -1740,9 +1769,24 @@ function saveSheetConfig() {
     if (cfg.slots[slotIdx]) cfg.slots[slotIdx][key] = el.value.trim().toUpperCase();
   }
   saveState();
-  var statusEl = document.getElementById('compareStatus');
-  statusEl.className = 'status-line shown ok';
-  statusEl.textContent = 'Sheet config saved.';
+
+  // Show the auto-saved indicator briefly
+  var indicator = document.getElementById('cfgSavedIndicator');
+  if (indicator) {
+    indicator.style.display = 'inline';
+    clearTimeout(saveSheetConfig._timer);
+    saveSheetConfig._timer = setTimeout(function() {
+      indicator.style.display = 'none';
+    }, 1500);
+  }
+
+  if (!silent) {
+    var statusEl = document.getElementById('compareStatus');
+    if (statusEl) {
+      statusEl.className = 'status-line shown ok';
+      statusEl.textContent = 'Sheet config saved.';
+    }
+  }
 }
 
 function resetSheetConfig() {
