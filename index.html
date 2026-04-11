@@ -1021,7 +1021,7 @@ function renderCompareResults() {
       var apaMismatch = formApaNorm && tmsApaNorm && formApaNorm !== tmsApaNorm;
       var nameMismatch = normalizeNameSorted(formName) !== normalizeNameSorted(tmsNameStr);
       var skillMismatch = formSL && tmsSL && String(formSL).trim() !== String(tmsSL).trim();
-      var byNameBadge = row.via === 'name' ? '<span class="match-by-name">by name</span>' : '';
+      var byNameBadge = row.via === 'name' ? ' <span class="match-by-name">by name</span>' : '';
 
       html += '<tr>'
         + '<td class="' + (apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
