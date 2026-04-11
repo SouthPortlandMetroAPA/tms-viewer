@@ -364,6 +364,185 @@
       border-radius: 999px;
       letter-spacing: 0.03em;
     }
+
+    /* ── Event navigation (top-level: Singles / Early Bird / etc.) ── */
+    .event-nav {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: calc(var(--spacing) * 4);
+    }
+    .event-btn {
+      flex: 1;
+      min-width: 140px;
+      min-height: 52px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      position: relative;
+      box-shadow: var(--shadow);
+    }
+    .event-btn:hover { background: #faf8f3; }
+    .event-btn.active {
+      background: var(--primary);
+      border-color: var(--primary-dark);
+      color: #000;
+    }
+    .event-btn .sub {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .event-btn.active .sub { color: rgba(0,0,0,0.6); }
+    .event-btn .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: #d0d0d0;
+    }
+    .event-btn .dot.loaded { background: #2e7d32; }
+
+    /* ── Sheet config card (in Compare tab) ─────────────────────── */
+    .sheet-config {
+      background: #faf8f3;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .sheet-config h4 {
+      margin: 0 0 8px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .sheet-config .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .sheet-config label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
+      letter-spacing: 0.04em;
+    }
+    .sheet-config input[type="text"] {
+      width: 100%;
+      min-height: 36px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .sheet-config input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(194,178,128,0.25);
+    }
+    .sheet-config .slot-group {
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .sheet-config .slot-group-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .sheet-config .col-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .sheet-config .col-letter {
+      width: 100%;
+      min-height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font: inherit;
+      font-size: 0.9rem;
+      text-align: center;
+      text-transform: uppercase;
+      background: #fff;
+    }
+
+    /* ── Team card (compare view for team events) ────────────────── */
+    .team-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 10px;
+    }
+    .team-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .team-card h4 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .team-card .team-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .team-card .team-dot.ok   { background: #2e7d32; }
+    .team-card .team-dot.warn { background: #b58c00; }
+    .team-card .team-dot.err  { background: #c0392b; }
+    .team-card ul {
+      list-style: none;
+      margin: 0; padding: 0;
+      font-size: 0.85rem;
+    }
+    .team-card li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      border-top: 1px dotted #eee;
+    }
+    .team-card li:first-child { border-top: 0; }
+    .team-card li .p-status {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.03em;
+    }
+    .p-status.ok   { background: #d4edda; color: #155724; }
+    .p-status.warn { background: #fff3cd; color: #856404; }
+    .p-status.err  { background: #f8d7da; color: #721c24; }
+    .team-card li .p-name { flex: 1; }
+    .team-card li .p-apa { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, monospace; }
+    .team-card li .p-sl { font-weight: 700; }
     .match-by-name {
       display: inline-block;
       background: #fff3cd;
@@ -397,37 +576,46 @@
     <div class="wave"></div>
   </header>
 
+  <!-- ═══ Event navigation (one page per event type) ═══ -->
+  <div class="event-nav" id="eventNav"></div>
+
   <div class="status-line" id="status"></div>
+
+  <!-- ═══ Game picker (shown when Tscore8 AND Tscore9 both have data) ═ -->
+  <div class="card hidden" id="gamePickerCard">
+    <h2>Both Tscore8 and Tscore9 have data</h2>
+    <p class="hint" style="color:var(--muted)">This zip contains player records in both 8-ball and 9-ball score tables. Pick which one to use for this event:</p>
+    <div id="gamePickerButtons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
 
   <!-- ═══ Drop zone ═══ -->
   <div class="card" id="dropCard">
     <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
       <span class="icon">&#128194;</span>
-      <div><strong>Drop a TMS export (.zip) here</strong></div>
+      <div><strong>Drop the <span id="dropEventLabel">Singles</span> TMS export (.zip) here</strong></div>
       <div class="hint">or click to browse. Everything is parsed in your browser — nothing is uploaded.</div>
       <input type="file" id="fileInput" accept=".zip">
     </div>
   </div>
 
-  <!-- ═══ Data view ═══ -->
+  <!-- ═══ Data / Compare view (shown once a file is loaded) ═══ -->
   <div class="card hidden" id="viewCard">
     <div class="loaded-file-row">
       <div class="loaded-file-name" id="loadedFileName"></div>
+      <div id="detectedGameLabel" style="font-size:0.8rem;color:var(--muted);font-weight:600"></div>
       <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewFile()">&#128194; Upload new file</button>
     </div>
-    <div class="tabs" id="gameTabs">
-      <button type="button" class="tab active" data-tab="8" onclick="switchTab('8')">8-Ball</button>
-      <button type="button" class="tab" data-tab="9" onclick="switchTab('9')">9-Ball</button>
+    <div class="tabs" id="viewTabs">
+      <button type="button" class="tab active" data-tab="data" onclick="switchTab('data')">Data</button>
       <button type="button" class="tab" data-tab="compare" onclick="switchTab('compare')">Compare Signups</button>
     </div>
 
-    <!-- ── Data view (8-ball / 9-ball) ──────────────────────────────── -->
+    <!-- ── Data view ─────────────────────────────────────────────── -->
     <div id="dataView">
       <div class="search-row">
         <input type="text" id="searchInput" placeholder="Search by name or APA #..." oninput="renderTable()">
         <div class="row-count" id="rowCount"></div>
         <button type="button" class="btn btn-outline" onclick="exportCsv()">&#11015; Export CSV</button>
-        <button type="button" class="btn btn-outline" onclick="resetData()">Reset</button>
       </div>
 
       <div class="table-wrap">
@@ -438,10 +626,12 @@
       </div>
     </div>
 
-    <!-- ── Compare view ─────────────────────────────────────────────── -->
+    <!-- ── Compare view ──────────────────────────────────────────── -->
     <div id="compareView" class="hidden">
+      <div class="sheet-config" id="sheetConfigCard"></div>
+
       <div class="compare-header">
-        <h3>Compare Form Signups (8-Ball Singles) &harr; TMS</h3>
+        <h3 id="compareTitle">Compare Form Signups &harr; TMS</h3>
         <button type="button" class="btn btn-primary" id="loadSignupsBtn" onclick="loadAndCompare()">&#128260; Load Signups</button>
         <label class="toggle-switch" id="ignoreNameToggleLabel">
           <input type="checkbox" id="ignoreNameToggle" onchange="toggleIgnoreNameDiffs()">
@@ -463,11 +653,78 @@
 <script>
 // ════════════════════════════════════════════════════════════════════
 // TMS Viewer — client-side APA TMS export browser
+// Restructured for per-event navigation (Singles / Early Bird / etc.)
+// ════════════════════════════════════════════════════════════════════
+//
+// OVERVIEW
+//   Four separate event pages: Singles, Early Bird Doubles, 3-Person
+//   Team, Weekender Doubles. Each page has its own TMS zip upload,
+//   Data tab, and Compare tab. State is per-event and persisted to
+//   localStorage so a reload restores everything.
+//
+//   Game type (8-ball vs 9-ball) is auto-detected from which Tscore
+//   file has player records; a picker appears if both have data.
+//
+//   The Compare tab has its own editable sheet config card so the
+//   user can point each page at the right columns in the Google Form
+//   signup sheet. For team events, signups are grouped by team and
+//   each player slot is extracted as an individual signup.
 // ════════════════════════════════════════════════════════════════════
 
+// ─── Event config ───────────────────────────────────────────────────
+var EVENTS = [
+  { key: 'singles',    label: 'Singles',              sub: '1 player',  playerSlots: 1, hasTeam: false },
+  { key: 'early_bird', label: 'Early Bird Doubles',   sub: '2 players', playerSlots: 2, hasTeam: true  },
+  { key: '3_person',   label: '3-Person Team',        sub: '3 players', playerSlots: 3, hasTeam: true  },
+  { key: 'weekender',  label: 'Weekender Doubles',    sub: '2 players', playerSlots: 2, hasTeam: true  }
+];
+
+var DEFAULT_SHEET_ID = '1haG5Vu7mgqjg7e1Nyt-SLnBu-6s7gMRxUf7svkxKvcY';
+var DEFAULT_SHEET_TAB = 'All Signups';
+
+// Default column letters per event. Only singles has fully known columns
+// (G/H/J) from the earlier session work. Other events default empty so
+// the user fills them in via the sheet config card.
+var DEFAULT_SHEET_CONFIGS = {
+  singles: {
+    sheetUrl: DEFAULT_SHEET_ID,
+    tabName: DEFAULT_SHEET_TAB,
+    colTeam: '',
+    slots: [
+      { colName: 'G', colApa: 'H', colSkill: 'J' }
+    ]
+  },
+  early_bird: {
+    sheetUrl: DEFAULT_SHEET_ID,
+    tabName: DEFAULT_SHEET_TAB,
+    colTeam: '',
+    slots: [
+      { colName: '', colApa: '', colSkill: '' },
+      { colName: '', colApa: '', colSkill: '' }
+    ]
+  },
+  '3_person': {
+    sheetUrl: DEFAULT_SHEET_ID,
+    tabName: DEFAULT_SHEET_TAB,
+    colTeam: '',
+    slots: [
+      { colName: '', colApa: '', colSkill: '' },
+      { colName: '', colApa: '', colSkill: '' },
+      { colName: '', colApa: '', colSkill: '' }
+    ]
+  },
+  weekender: {
+    sheetUrl: DEFAULT_SHEET_ID,
+    tabName: DEFAULT_SHEET_TAB,
+    colTeam: '',
+    slots: [
+      { colName: '', colApa: '', colSkill: '' },
+      { colName: '', colApa: '', colSkill: '' }
+    ]
+  }
+};
+
 // Default columns shown if the user hasn't configured the admin page yet.
-// Matches what the user asked for: player number, first name, last name,
-// skill level (TSKL1 = skill on their primary team slot).
 var DEFAULT_COLUMNS = ['APACARD', 'FIRST', 'LAST', 'TSKL1'];
 
 // Pretty labels for common fields so the default view reads nicely.
@@ -503,42 +760,81 @@ var FIELD_LABELS = {
 };
 
 // ────────────────────────────────────────────────────────────────────
-// State
+// State — one record per event
 // ────────────────────────────────────────────────────────────────────
-var tables = { '8': null, '9': null };   // parsed Paradox objects
-var currentGame = '8';
-var currentSort = { col: null, dir: 'asc' };
-var loadedFilename = '';
+function newEventState(key) {
+  return {
+    tables: { '8': null, '9': null },
+    detected: null,          // '8' | '9' | null — which game TMS data holds this event
+    loadedFilename: '',
+    sheetConfig: JSON.parse(JSON.stringify(DEFAULT_SHEET_CONFIGS[key])),
+    lastCompare: { matched: [], unmatched: [], teams: [] },
+    justAddedApa: [],        // arrays (not Sets) so they JSON-serialize cleanly
+    justAddedName: [],
+    activeTab: 'data',       // 'data' | 'compare'
+    searchInput: '',
+    currentSort: { col: null, dir: 'asc' },
+    matchedFilter: 'all',
+    unmatchedFilter: 'all'
+  };
+}
+
+var state = {};
+EVENTS.forEach(function(ev) { state[ev.key] = newEventState(ev.key); });
+
+var currentEvent = 'singles';
+var ignoreNameDiffs = false;
+
+// Only populated between parse and picker resolution.
+var pendingParse = null; // { file, t8, t9 }
+
+// Accessor for the active event's state.
+function S() { return state[currentEvent]; }
 
 // Persistence keys
-var CACHE_KEY = 'tmsviewer.cache.tables.v1';
-var CACHE_FILENAME_KEY = 'tmsviewer.cache.filename.v1';
+var STATE_KEY = 'tmsviewer.state.v2';
 var IGNORE_NAMES_KEY = 'tmsviewer.ignoreNameDiffs';
+var CURRENT_EVENT_KEY = 'tmsviewer.currentEvent';
+
+function getEventDef(key) {
+  for (var i = 0; i < EVENTS.length; i++) if (EVENTS[i].key === key) return EVENTS[i];
+  return null;
+}
 
 // ────────────────────────────────────────────────────────────────────
-// Cache: persist the parsed tables to localStorage so a browser reload
-// restores the loaded zip without forcing the user to re-upload.
+// Persistence: save/restore the entire state object in localStorage
 // ────────────────────────────────────────────────────────────────────
-function saveTablesToCache(filename) {
+function saveState() {
   try {
-    // Strip out non-serializable stuff if any (JS Dates etc.) — tables
-    // are plain objects from the parser so JSON round-trips cleanly.
-    var payload = {
-      '8': tables['8'] ? stripForCache(tables['8']) : null,
-      '9': tables['9'] ? stripForCache(tables['9']) : null
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
-    if (filename) {
-      localStorage.setItem(CACHE_FILENAME_KEY, filename);
-      loadedFilename = filename;
-    }
+    // Build a serializable payload. The parsed tables are plain objects
+    // from paradox.js so they JSON-round-trip cleanly.
+    var payload = {};
+    Object.keys(state).forEach(function(k) {
+      var s = state[k];
+      payload[k] = {
+        tables: {
+          '8': s.tables['8'] ? stripTableForCache(s.tables['8']) : null,
+          '9': s.tables['9'] ? stripTableForCache(s.tables['9']) : null
+        },
+        detected: s.detected,
+        loadedFilename: s.loadedFilename,
+        sheetConfig: s.sheetConfig,
+        lastCompare: s.lastCompare,
+        justAddedApa: s.justAddedApa,
+        justAddedName: s.justAddedName,
+        activeTab: s.activeTab,
+        matchedFilter: s.matchedFilter,
+        unmatchedFilter: s.unmatchedFilter
+      };
+    });
+    localStorage.setItem(STATE_KEY, JSON.stringify(payload));
+    localStorage.setItem(CURRENT_EVENT_KEY, currentEvent);
   } catch (e) {
-    console.warn('Could not cache parsed tables:', e);
+    console.warn('Could not save state:', e);
   }
 }
 
-function stripForCache(tbl) {
-  // Keep only what we need on reload: field metadata + records.
+function stripTableForCache(tbl) {
   return {
     tableName: tbl.tableName,
     fieldNames: tbl.fieldNames,
@@ -551,33 +847,42 @@ function stripForCache(tbl) {
   };
 }
 
-function restoreTablesFromCache() {
+function restoreState() {
   try {
-    var raw = localStorage.getItem(CACHE_KEY);
+    var raw = localStorage.getItem(STATE_KEY);
     if (!raw) return false;
     var payload = JSON.parse(raw);
-    if (!payload || (!payload['8'] && !payload['9'])) return false;
-    tables['8'] = payload['8'] || null;
-    tables['9'] = payload['9'] || null;
-    loadedFilename = localStorage.getItem(CACHE_FILENAME_KEY) || '';
-    // Re-hydrate sessionStorage field lists for admin.html
-    if (tables['8']) {
-      try { sessionStorage.setItem('tmsviewer.fields.8', JSON.stringify(tables['8'].fieldNames)); } catch (e) {}
-    }
-    if (tables['9']) {
-      try { sessionStorage.setItem('tmsviewer.fields.9', JSON.stringify(tables['9'].fieldNames)); } catch (e) {}
-    }
+    if (!payload) return false;
+    EVENTS.forEach(function(ev) {
+      var p = payload[ev.key];
+      if (!p) return;
+      var s = state[ev.key];
+      s.tables = { '8': p.tables && p.tables['8'] || null, '9': p.tables && p.tables['9'] || null };
+      s.detected = p.detected || null;
+      s.loadedFilename = p.loadedFilename || '';
+      if (p.sheetConfig) s.sheetConfig = p.sheetConfig;
+      s.lastCompare = p.lastCompare || { matched: [], unmatched: [], teams: [] };
+      s.justAddedApa = p.justAddedApa || [];
+      s.justAddedName = p.justAddedName || [];
+      s.activeTab = p.activeTab || 'data';
+      s.matchedFilter = p.matchedFilter || 'all';
+      s.unmatchedFilter = p.unmatchedFilter || 'all';
+    });
+    var savedEvent = localStorage.getItem(CURRENT_EVENT_KEY);
+    if (savedEvent && state[savedEvent]) currentEvent = savedEvent;
     return true;
   } catch (e) {
-    console.warn('Could not restore cached tables:', e);
+    console.warn('Could not restore state:', e);
     return false;
   }
 }
 
-function clearTablesCache() {
+function clearEventCache(eventKey) {
+  state[eventKey] = newEventState(eventKey);
+  saveState();
   try {
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(CACHE_FILENAME_KEY);
+    sessionStorage.removeItem('tmsviewer.fields.8');
+    sessionStorage.removeItem('tmsviewer.fields.9');
   } catch (e) {}
 }
 
@@ -612,7 +917,7 @@ function clearStatus() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Drop zone / file input
+// Drop zone / file input wiring
 // ────────────────────────────────────────────────────────────────────
 (function wireDrop() {
   var zone = document.getElementById('dropZone');
@@ -639,33 +944,102 @@ function clearStatus() {
 })();
 
 // ────────────────────────────────────────────────────────────────────
-// Init — if we have a cached parse in localStorage, restore it so the
-// user doesn't have to re-upload after a browser reload.
+// Event navigation — renders the 4 top-level buttons and switches
 // ────────────────────────────────────────────────────────────────────
-(function init() {
-  // Apply the saved "ignore name differences" checkbox state
-  try {
-    var cb = document.getElementById('ignoreNameToggle');
-    if (cb) {
-      cb.checked = ignoreNameDiffs;
-      document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
-    }
-  } catch (e) {}
-
-  if (restoreTablesFromCache()) {
-    // Rehydrate the tab visibility based on what was actually cached
-    var tab8 = document.querySelector('[data-tab="8"]');
-    var tab9 = document.querySelector('[data-tab="9"]');
-    if (tab8) tab8.style.display = tables['8'] ? '' : 'none';
-    if (tab9) tab9.style.display = tables['9'] ? '' : 'none';
-    if (!tables[currentGame]) currentGame = tables['8'] ? '8' : '9';
-    setActiveTab(currentGame);
-    showLoadedView(loadedFilename);
-    renderTable();
-    setStatus('ok', 'Restored ' + (loadedFilename || 'previously loaded file') + ' from cache. Click "Upload new file" to replace it.');
+function renderEventNav() {
+  var nav = document.getElementById('eventNav');
+  var html = '';
+  for (var i = 0; i < EVENTS.length; i++) {
+    var ev = EVENTS[i];
+    var s = state[ev.key];
+    var loaded = !!(s.tables['8'] || s.tables['9']);
+    var active = ev.key === currentEvent;
+    html += '<button type="button" class="event-btn' + (active ? ' active' : '') + '"'
+         + ' onclick="switchEvent(\'' + ev.key + '\')">'
+         + '<span class="dot' + (loaded ? ' loaded' : '') + '"></span>'
+         + esc(ev.label)
+         + '<span class="sub">' + esc(ev.sub) + '</span>'
+         + '</button>';
   }
-})();
+  nav.innerHTML = html;
+}
 
+function switchEvent(key) {
+  if (!state[key]) return;
+  currentEvent = key;
+  saveState();
+  renderEventNav();
+  renderCurrentEvent();
+}
+
+function renderCurrentEvent() {
+  var s = S();
+  var def = getEventDef(currentEvent);
+
+  // Drop zone label
+  var dropLabel = document.getElementById('dropEventLabel');
+  if (dropLabel) dropLabel.textContent = def.label;
+
+  var hasData = !!s.detected && !!s.tables[s.detected];
+
+  document.getElementById('gamePickerCard').classList.add('hidden');
+
+  if (!hasData) {
+    document.getElementById('viewCard').classList.add('hidden');
+    document.getElementById('dropCard').classList.remove('hidden');
+    clearStatus();
+    return;
+  }
+
+  // Show the view card
+  document.getElementById('dropCard').classList.add('hidden');
+  document.getElementById('viewCard').classList.remove('hidden');
+
+  // Filename + detected game banner
+  var nameEl = document.getElementById('loadedFileName');
+  if (nameEl) {
+    nameEl.innerHTML = 'Currently viewing: <strong>' + esc(s.loadedFilename || 'cached file') + '</strong>';
+  }
+  var gameEl = document.getElementById('detectedGameLabel');
+  if (gameEl) {
+    gameEl.textContent = s.detected === '8' ? 'Auto-detected: 8-Ball' : 'Auto-detected: 9-Ball';
+  }
+
+  // Tabs
+  setActiveTab(s.activeTab);
+
+  // Compare title
+  var compareTitle = document.getElementById('compareTitle');
+  if (compareTitle) compareTitle.innerHTML = 'Compare ' + esc(def.label) + ' Signups &harr; TMS';
+
+  // Search input value
+  var searchEl = document.getElementById('searchInput');
+  if (searchEl) searchEl.value = s.searchInput || '';
+
+  // Ignore-name-diffs checkbox
+  var cb = document.getElementById('ignoreNameToggle');
+  if (cb) {
+    cb.checked = ignoreNameDiffs;
+    document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
+  }
+
+  renderSheetConfig();
+
+  // Render data/compare based on active tab
+  if (s.activeTab === 'compare') {
+    document.getElementById('dataView').classList.add('hidden');
+    document.getElementById('compareView').classList.remove('hidden');
+    renderCompareResults();
+  } else {
+    document.getElementById('dataView').classList.remove('hidden');
+    document.getElementById('compareView').classList.add('hidden');
+    renderTable();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// handleFile — drop zone → parse → detect game → store in current event
+// ────────────────────────────────────────────────────────────────────
 async function handleFile(file) {
   clearStatus();
   if (!file) return;
@@ -682,80 +1056,105 @@ async function handleFile(file) {
     var arrayBuf = await file.arrayBuffer();
     var zip = await JSZip.loadAsync(arrayBuf);
 
-    // Find Tscore8.DB and Tscore9.DB (case-insensitive, ignore folder prefixes)
     var names = Object.keys(zip.files);
-    var score8 = findZipEntry(zip, names, /tscore8\.db$/i);
-    var score9 = findZipEntry(zip, names, /tscore9\.db$/i);
+    var score8Entry = findZipEntry(zip, names, /tscore8\.db$/i);
+    var score9Entry = findZipEntry(zip, names, /tscore9\.db$/i);
 
-    if (!score8 && !score9) {
+    if (!score8Entry && !score9Entry) {
       setStatus('err', 'No Tscore8.DB or Tscore9.DB found in the zip. Files present: ' + names.join(', '));
       return;
     }
 
-    tables = { '8': null, '9': null };
-
-    if (score8) {
-      var buf8 = await score8.async('arraybuffer');
-      tables['8'] = Paradox.parseDb(buf8);
-      // Cache field list so admin.html can show only fields that actually
-      // exist in this specific export (session-scoped).
-      try { sessionStorage.setItem('tmsviewer.fields.8', JSON.stringify(tables['8'].fieldNames)); } catch (e) {}
+    var t8 = null, t9 = null;
+    if (score8Entry) {
+      t8 = Paradox.parseDb(await score8Entry.async('arraybuffer'));
     }
-    if (score9) {
-      var buf9 = await score9.async('arraybuffer');
-      tables['9'] = Paradox.parseDb(buf9);
-      try { sessionStorage.setItem('tmsviewer.fields.9', JSON.stringify(tables['9'].fieldNames)); } catch (e) {}
+    if (score9Entry) {
+      t9 = Paradox.parseDb(await score9Entry.async('arraybuffer'));
     }
 
-    // Hide 8 or 9 tab if that file was absent
-    document.querySelector('[data-tab="8"]').style.display = tables['8'] ? '' : 'none';
-    document.querySelector('[data-tab="9"]').style.display = tables['9'] ? '' : 'none';
+    var r8 = t8 ? t8.records.length : 0;
+    var r9 = t9 ? t9.records.length : 0;
 
-    // Pick the first available game to show
-    if (!tables[currentGame]) currentGame = tables['8'] ? '8' : '9';
-    setActiveTab(currentGame);
-
-    // Persist to localStorage so a browser reload doesn't force re-upload.
-    saveTablesToCache(file.name);
-
-    showLoadedView(file.name);
-    renderTable();
-
-    var msg = 'Loaded ' + file.name + ' — ';
-    if (tables['8']) msg += tables['8'].records.length + ' 8-ball ';
-    if (tables['8'] && tables['9']) msg += '& ';
-    if (tables['9']) msg += tables['9'].records.length + ' 9-ball ';
-    msg += 'players.';
-    setStatus('ok', msg);
+    // Game autodetect rules:
+    //  1. If only one table has records → use that one.
+    //  2. If neither has records → error.
+    //  3. If both have records → show a picker so the user confirms.
+    if (r8 > 0 && r9 === 0) {
+      applyParsedTables(file.name, t8, t9, '8');
+    } else if (r9 > 0 && r8 === 0) {
+      applyParsedTables(file.name, t8, t9, '9');
+    } else if (r8 === 0 && r9 === 0) {
+      setStatus('err', 'Both Tscore8 and Tscore9 are empty in ' + file.name + '.');
+    } else {
+      // Ambiguous — both have records. Show the picker card.
+      pendingParse = { filename: file.name, t8: t8, t9: t9, r8: r8, r9: r9 };
+      showGamePicker();
+    }
   } catch (e) {
     console.error(e);
     setStatus('err', 'Could not load zip: ' + (e && e.message ? e.message : String(e)));
   }
 }
 
-// Show the loaded-file row + data view, hide the drop zone.
-function showLoadedView(filename) {
-  var nameEl = document.getElementById('loadedFileName');
-  if (nameEl) {
-    var label = filename || 'Loaded from cache';
-    nameEl.innerHTML = 'Currently viewing: <strong>' + esc(label) + '</strong>';
-  }
-  document.getElementById('viewCard').classList.remove('hidden');
+function showGamePicker() {
+  if (!pendingParse) return;
+  var card = document.getElementById('gamePickerCard');
+  var btnsEl = document.getElementById('gamePickerButtons');
+  btnsEl.innerHTML =
+      '<button type="button" class="btn btn-primary" onclick="pickGame(\'8\')">Use 8-Ball (' + pendingParse.r8 + ' records)</button>'
+    + '<button type="button" class="btn btn-primary" onclick="pickGame(\'9\')">Use 9-Ball (' + pendingParse.r9 + ' records)</button>'
+    + '<button type="button" class="btn btn-outline" onclick="cancelGamePicker()">Cancel</button>';
   document.getElementById('dropCard').classList.add('hidden');
+  document.getElementById('viewCard').classList.add('hidden');
+  card.classList.remove('hidden');
 }
 
-// User clicked "Upload new file" — clear cache and return to drop zone.
-function uploadNewFile() {
-  if (!confirm('Clear the currently-loaded file and upload a new one?')) return;
-  clearTablesCache();
-  tables = { '8': null, '9': null };
-  loadedFilename = '';
-  try {
-    sessionStorage.removeItem('tmsviewer.fields.8');
-    sessionStorage.removeItem('tmsviewer.fields.9');
-  } catch (e) {}
-  document.getElementById('viewCard').classList.add('hidden');
+function pickGame(game) {
+  if (!pendingParse) return;
+  applyParsedTables(pendingParse.filename, pendingParse.t8, pendingParse.t9, game);
+  pendingParse = null;
+  document.getElementById('gamePickerCard').classList.add('hidden');
+}
+
+function cancelGamePicker() {
+  pendingParse = null;
+  document.getElementById('gamePickerCard').classList.add('hidden');
   document.getElementById('dropCard').classList.remove('hidden');
+  clearStatus();
+}
+
+// Store parsed tables in the current event's state and render.
+function applyParsedTables(filename, t8, t9, detected) {
+  var s = S();
+  s.tables = { '8': t8 || null, '9': t9 || null };
+  s.detected = detected;
+  s.loadedFilename = filename;
+  s.activeTab = 'data';
+  s.currentSort = { col: null, dir: 'asc' };
+
+  try {
+    if (t8) sessionStorage.setItem('tmsviewer.fields.8', JSON.stringify(t8.fieldNames));
+    if (t9) sessionStorage.setItem('tmsviewer.fields.9', JSON.stringify(t9.fieldNames));
+  } catch (e) {}
+
+  saveState();
+
+  var def = getEventDef(currentEvent);
+  var recCount = s.tables[detected].records.length;
+  setStatus('ok', 'Loaded ' + filename + ' into ' + def.label + ' — ' + recCount + ' ' + (detected === '8' ? '8-ball' : '9-ball') + ' players.');
+
+  renderEventNav();
+  renderCurrentEvent();
+}
+
+// User clicked "Upload new file" — clear current event's cache only.
+function uploadNewFile() {
+  var def = getEventDef(currentEvent);
+  if (!confirm('Clear the currently-loaded file for ' + def.label + ' and upload a new one?')) return;
+  clearEventCache(currentEvent);
+  renderEventNav();
+  renderCurrentEvent();
   document.getElementById('fileInput').value = '';
   clearStatus();
 }
@@ -768,42 +1167,58 @@ function findZipEntry(zip, names, regex) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Tab switching — "8", "9", or "compare"
+// Init — restore state, render event nav, render current event
+// ────────────────────────────────────────────────────────────────────
+(function init() {
+  try {
+    ignoreNameDiffs = localStorage.getItem(IGNORE_NAMES_KEY) === '1';
+  } catch (e) {}
+
+  restoreState();
+  renderEventNav();
+
+  var cb = document.getElementById('ignoreNameToggle');
+  if (cb) {
+    cb.checked = ignoreNameDiffs;
+    document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
+  }
+
+  renderCurrentEvent();
+})();
+
+// ────────────────────────────────────────────────────────────────────
+// Tab switching — 'data' | 'compare'
 // ────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  var tabs = document.querySelectorAll('#gameTabs .tab');
-  for (var i = 0; i < tabs.length; i++) {
-    tabs[i].classList.toggle('active', tabs[i].dataset.tab === tab);
-  }
-  var dataView = document.getElementById('dataView');
-  var compareView = document.getElementById('compareView');
+  S().activeTab = tab;
+  saveState();
+  setActiveTab(tab);
   if (tab === 'compare') {
-    dataView.classList.add('hidden');
-    compareView.classList.remove('hidden');
+    document.getElementById('dataView').classList.add('hidden');
+    document.getElementById('compareView').classList.remove('hidden');
+    renderSheetConfig();
+    renderCompareResults();
   } else {
-    dataView.classList.remove('hidden');
-    compareView.classList.add('hidden');
-    currentGame = tab;
-    currentSort = { col: null, dir: 'asc' };
+    document.getElementById('dataView').classList.remove('hidden');
+    document.getElementById('compareView').classList.add('hidden');
     renderTable();
   }
 }
 
-// Back-compat: the file-load code still calls setActiveTab for the
-// initial render after a zip is dropped.
-function setActiveTab(game) {
-  var tabs = document.querySelectorAll('#gameTabs .tab');
+function setActiveTab(tab) {
+  var tabs = document.querySelectorAll('#viewTabs .tab');
   for (var i = 0; i < tabs.length; i++) {
-    tabs[i].classList.toggle('active', tabs[i].dataset.tab === game);
+    tabs[i].classList.toggle('active', tabs[i].dataset.tab === tab);
   }
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Sorting
+// Sorting (data view)
 // ────────────────────────────────────────────────────────────────────
 function headerClick(col) {
-  if (currentSort.col === col) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
-  else { currentSort.col = col; currentSort.dir = 'asc'; }
+  var cs = S().currentSort;
+  if (cs.col === col) cs.dir = cs.dir === 'asc' ? 'desc' : 'asc';
+  else { cs.col = col; cs.dir = 'asc'; }
   renderTable();
 }
 
@@ -821,25 +1236,27 @@ function sortRecords(rows, col, dir) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Rendering
+// Data table rendering (scoped to the current event's detected game)
 // ────────────────────────────────────────────────────────────────────
 function renderTable() {
-  var tbl = tables[currentGame];
+  var s = S();
+  var tbl = s.detected ? s.tables[s.detected] : null;
   var head = document.getElementById('dataHead');
   var body = document.getElementById('dataBody');
   if (!tbl) {
     head.innerHTML = '';
     body.innerHTML = '';
+    document.getElementById('rowCount').textContent = '';
     return;
   }
 
-  var cols = getColumns(currentGame);
-  // Only keep columns that actually exist in the parsed table
+  var cols = getColumns(s.detected);
   cols = cols.filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
   if (cols.length === 0) cols = DEFAULT_COLUMNS.filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
 
-  // Search
-  var q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  var searchEl = document.getElementById('searchInput');
+  var q = (searchEl && searchEl.value || '').trim().toLowerCase();
+  s.searchInput = q;
   var rows = tbl.records;
   if (q) {
     rows = rows.filter(function(r) {
@@ -850,19 +1267,16 @@ function renderTable() {
     });
   }
 
-  // Sort
-  rows = sortRecords(rows, currentSort.col, currentSort.dir);
+  rows = sortRecords(rows, s.currentSort.col, s.currentSort.dir);
 
-  // Header
   var headHtml = '';
   for (var c = 0; c < cols.length; c++) {
     var col = cols[c];
-    var sortClass = currentSort.col === col ? (currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    var sortClass = s.currentSort.col === col ? (s.currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
     headHtml += '<th class="' + sortClass + '" onclick="headerClick(\'' + esc(col) + '\')">' + esc(labelFor(col)) + '</th>';
   }
   head.innerHTML = headHtml;
 
-  // Body
   var bodyHtml = '';
   var fieldTypeMap = {};
   for (var k = 0; k < tbl.fieldNames.length; k++) fieldTypeMap[tbl.fieldNames[k]] = tbl.fieldTypes[k];
@@ -873,7 +1287,6 @@ function renderTable() {
       var col2 = cols[j];
       var v = rows[i][col2];
       var ft = fieldTypeMap[col2];
-      var isNum = ft === 0x03 || ft === 0x04 || ft === 0x06;
       if (v == null) {
         bodyHtml += '<td class="null">—</td>';
       } else if (ft === 0x02 && v instanceof Date) {
@@ -889,8 +1302,7 @@ function renderTable() {
   }
   body.innerHTML = bodyHtml;
 
-  document.getElementById('rowCount').textContent =
-    rows.length + ' / ' + tbl.records.length + ' rows';
+  document.getElementById('rowCount').textContent = rows.length + ' / ' + tbl.records.length + ' rows';
 }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
@@ -906,71 +1318,61 @@ function csvQuote(v) {
 }
 
 function exportCsv() {
-  var tbl = tables[currentGame];
+  var s = S();
+  var tbl = s.detected ? s.tables[s.detected] : null;
   if (!tbl) return;
-  var cols = getColumns(currentGame).filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
-  var q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  var cols = getColumns(s.detected).filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
+  var q = (s.searchInput || '').toLowerCase();
   var rows = tbl.records;
   if (q) rows = rows.filter(function(r) {
     return String(r.FIRST || '').toLowerCase().indexOf(q) !== -1
       || String(r.LAST || '').toLowerCase().indexOf(q) !== -1
       || String(r.APACARD || '').toLowerCase().indexOf(q) !== -1;
   });
-  rows = sortRecords(rows, currentSort.col, currentSort.dir);
+  rows = sortRecords(rows, s.currentSort.col, s.currentSort.dir);
 
   var csv = cols.map(function(c) { return csvQuote(labelFor(c)); }).join(',');
   for (var i = 0; i < rows.length; i++) {
     var line = cols.map(function(c) { return csvQuote(rows[i][c]); }).join(',');
     csv += '\r\n' + line;
   }
-
-  var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'tms_' + currentGame + 'ball_' + new Date().toISOString().slice(0, 10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  downloadCompareCsv('tms_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', csv);
 }
 
 // ════════════════════════════════════════════════════════════════════
 // Compare with online Form Signups (Google Sheets, public CSV endpoint)
 // ════════════════════════════════════════════════════════════════════
-// The app is READ-ONLY — never writes to the sheet, never requests any
-// scope that could mutate it. We hit the public gviz CSV endpoint which
-// only works for sheets shared as "anyone with the link can view".
+// READ-ONLY — never writes to the sheet. We hit the public gviz CSV
+// endpoint which only works for sheets shared as "anyone with link view".
 //
-// Sheet ID: 1haG5Vu7mgqjg7e1Nyt-SLnBu-6s7gMRxUf7svkxKvcY
-// Tab:      "All Signups"
-// Columns:  G = Player Name, H = Player APA #, J = Skill Level
-// Singles event is 8-Ball Singles, so we match against tables['8'].
+// Each event has its own sheet config (URL, tab, column letters) so
+// singles can point at G/H/J while team events point at whatever columns
+// the Google Form put their data in.
 // ────────────────────────────────────────────────────────────────────
 
-var SIGNUPS_SHEET_ID = '1haG5Vu7mgqjg7e1Nyt-SLnBu-6s7gMRxUf7svkxKvcY';
-var SIGNUPS_TAB = 'All Signups';
-var SINGLES_GAME = '8';  // 8-Ball Singles
+// ─── Column letter utilities ────────────────────────────────────────
+function colLetterToIdx(letter) {
+  letter = String(letter || '').toUpperCase().trim();
+  if (!letter) return -1;
+  var idx = 0;
+  for (var i = 0; i < letter.length; i++) {
+    var c = letter.charCodeAt(i) - 64;
+    if (c < 1 || c > 26) return -1;
+    idx = idx * 26 + c;
+  }
+  return idx - 1;
+}
 
-// Last compare results (kept so the export buttons work after render)
-var lastCompare = { matched: [], unmatched: [] };
+function extractSheetId(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+  var m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(s)) return s;
+  return '';
+}
 
-// Set of normalized APA #s the user has marked as "just added" by pasting
-// into the Just Added box. Also store a name-only set as fallback when the
-// paste has no APA number. Persisted to localStorage so the user can walk
-// away, enter players in TMS, and come back.
-var justAddedApa = new Set();
-var justAddedName = new Set();
-
-// Filter state for the unmatched table
-var unmatchedFilter = 'all'; // 'all' | 'pending' | 'added'
-
-// Filter state for the matched table
-var matchedFilter = 'all'; // 'all' | 'flagged' | 'clean' | 'skillup' | 'skilldown'
-
-// Return { form, tms, delta } as numbers if both skill values are present
-// and parse cleanly as numbers, otherwise null. Used for the skill-change
-// filters on the matched table.
+// Skill-change filters
 function parseSkillPair(row) {
   var formRaw = row.form.skill;
   var tmsRaw = tmsSkillLevel(row.tms);
@@ -981,16 +1383,8 @@ function parseSkillPair(row) {
   if (isNaN(formNum) || isNaN(tmsNum)) return null;
   return { form: formNum, tms: tmsNum, delta: tmsNum - formNum };
 }
-
 function skillWentUp(row)   { var p = parseSkillPair(row); return p != null && p.delta > 0; }
 function skillWentDown(row) { var p = parseSkillPair(row); return p != null && p.delta < 0; }
-
-// User preference: ignore name-only differences when deciding what to flag.
-// Loaded from localStorage so it persists across sessions.
-var ignoreNameDiffs = false;
-try {
-  ignoreNameDiffs = localStorage.getItem(IGNORE_NAMES_KEY) === '1';
-} catch (e) {}
 
 function toggleIgnoreNameDiffs() {
   var cb = document.getElementById('ignoreNameToggle');
@@ -1000,53 +1394,26 @@ function toggleIgnoreNameDiffs() {
   renderCompareResults();
 }
 
-// Compute the flags for a matched row (kept centralized so the filter
-// and the render code always agree).
 function matchFlags(row) {
   var formApaNorm = row.form.apaNorm;
   var tmsApaNorm = normalizeApa(row.tms.APACARD);
-  var formName = row.form.name;
-  var tmsNameStr = tmsName(row.tms);
-  var formSL = row.form.skill;
-  var tmsSL = tmsSkillLevel(row.tms);
   return {
     apaMismatch:   !!(formApaNorm && tmsApaNorm && formApaNorm !== tmsApaNorm),
-    nameMismatch:  normalizeNameSorted(formName) !== normalizeNameSorted(tmsNameStr),
-    skillMismatch: !!(formSL && tmsSL && String(formSL).trim() !== String(tmsSL).trim()),
+    nameMismatch:  normalizeNameSorted(row.form.name) !== normalizeNameSorted(tmsName(row.tms)),
+    skillMismatch: !!(row.form.skill && tmsSkillLevel(row.tms)
+                   && String(row.form.skill).trim() !== String(tmsSkillLevel(row.tms)).trim()),
     matchedByName: row.via === 'name'
   };
 }
 function isFlagged(row) {
   var f = matchFlags(row);
   if (f.apaMismatch || f.skillMismatch || f.matchedByName) return true;
-  // Only count name mismatches when the user hasn't opted to ignore them.
   if (!ignoreNameDiffs && f.nameMismatch) return true;
   return false;
 }
 
-function setMatchedFilter(key) {
-  matchedFilter = key;
-  renderCompareResults();
-}
-
-function loadJustAdded() {
-  try {
-    var a = JSON.parse(localStorage.getItem('tmsviewer.justAdded.apa') || '[]');
-    var n = JSON.parse(localStorage.getItem('tmsviewer.justAdded.name') || '[]');
-    justAddedApa = new Set(Array.isArray(a) ? a : []);
-    justAddedName = new Set(Array.isArray(n) ? n : []);
-  } catch (e) {
-    justAddedApa = new Set();
-    justAddedName = new Set();
-  }
-}
-function saveJustAdded() {
-  try {
-    localStorage.setItem('tmsviewer.justAdded.apa', JSON.stringify(Array.from(justAddedApa)));
-    localStorage.setItem('tmsviewer.justAdded.name', JSON.stringify(Array.from(justAddedName)));
-  } catch (e) {}
-}
-loadJustAdded();
+function setMatchedFilter(key)   { S().matchedFilter = key; saveState(); renderCompareResults(); }
+function setUnmatchedFilter(key) { S().unmatchedFilter = key; saveState(); renderCompareResults(); }
 
 // ─── CSV parser (handles quoted fields with embedded commas/newlines) ─
 function parseCsvText(text) {
@@ -1126,66 +1493,112 @@ function tmsSkillLevel(rec) {
   return v == null ? '' : String(v);
 }
 
+// ─── Extract signups from a CSV row per event config ────────────────
+// Returns an array of signup records. For singles, 1 per row. For team
+// events, one per filled player slot, each tagged with the team name.
+function extractSignupsFromRow(row, rowNum, sheetConfig, eventDef) {
+  var out = [];
+  var teamName = '';
+  if (eventDef.hasTeam) {
+    var teamIdx = colLetterToIdx(sheetConfig.colTeam);
+    if (teamIdx >= 0) teamName = (row[teamIdx] || '').trim();
+  }
+  for (var i = 0; i < sheetConfig.slots.length; i++) {
+    var slot = sheetConfig.slots[i];
+    var nameIdx  = colLetterToIdx(slot.colName);
+    var apaIdx   = colLetterToIdx(slot.colApa);
+    var skillIdx = colLetterToIdx(slot.colSkill);
+    var name  = nameIdx  >= 0 ? (row[nameIdx]  || '').trim() : '';
+    var apa   = apaIdx   >= 0 ? (row[apaIdx]   || '').trim() : '';
+    var skill = skillIdx >= 0 ? (row[skillIdx] || '').trim() : '';
+    if (!name && !apa) continue;
+    out.push({
+      rowNum: rowNum,
+      slotIdx: i,
+      teamName: teamName,
+      name: name,
+      apa: apa,
+      apaNorm: normalizeApa(apa),
+      nameNorm: normalizeNameSorted(name),
+      skill: skill
+    });
+  }
+  return out;
+}
+
 // ─── Fetch + compare ────────────────────────────────────────────────
 async function loadAndCompare() {
+  var s = S();
+  var def = getEventDef(currentEvent);
   var statusEl = document.getElementById('compareStatus');
   var results = document.getElementById('compareResults');
   var btn = document.getElementById('loadSignupsBtn');
 
-  var tbl = tables[SINGLES_GAME];
+  var tbl = s.detected ? s.tables[s.detected] : null;
   if (!tbl) {
     statusEl.className = 'status-line shown err';
-    statusEl.textContent = 'Drop a TMS zip with Tscore8.DB first — the compare needs 8-ball data to match against.';
+    statusEl.textContent = 'Upload a TMS zip for ' + def.label + ' first.';
+    return;
+  }
+
+  var cfg = s.sheetConfig;
+  var sheetId = extractSheetId(cfg.sheetUrl);
+  if (!sheetId) {
+    statusEl.className = 'status-line shown err';
+    statusEl.textContent = 'Enter a valid Google Sheet URL or ID in the config card above.';
+    return;
+  }
+  // Validate at least one slot has all 3 columns
+  var anySlot = cfg.slots.some(function(sl) {
+    return colLetterToIdx(sl.colName) >= 0 && colLetterToIdx(sl.colApa) >= 0;
+  });
+  if (!anySlot) {
+    statusEl.className = 'status-line shown err';
+    statusEl.textContent = 'Configure at least one player slot (Name + APA columns).';
     return;
   }
 
   btn.disabled = true;
   btn.textContent = 'Loading...';
   statusEl.className = 'status-line shown info';
-  statusEl.textContent = 'Fetching All Signups from Google Sheets...';
+  statusEl.textContent = 'Fetching ' + (cfg.tabName || 'sheet') + ' from Google Sheets...';
   results.innerHTML = '';
 
   try {
-    var url = 'https://docs.google.com/spreadsheets/d/' + SIGNUPS_SHEET_ID
-            + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(SIGNUPS_TAB);
+    var url = 'https://docs.google.com/spreadsheets/d/' + sheetId
+            + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(cfg.tabName || DEFAULT_SHEET_TAB);
     var resp = await fetch(url, { method: 'GET' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching sheet');
     var csv = await resp.text();
     var rows = parseCsvText(csv);
-
     if (rows.length < 2) throw new Error('Sheet has no data rows.');
 
-    // Column indices (0-based): G=6, H=7, J=9
-    var COL_NAME = 6, COL_APA = 7, COL_SKILL = 9;
-
-    // Collect singles signups — any row that has a name in column G.
-    // Deduplicate by APA number (some users submit the form twice).
-    var seenApa = {};
+    // Extract signups (flat list) + track which signups belong to which team
+    var seen = {};
     var signups = [];
+    var teamMap = {};  // teamName → [signups]
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r];
-      var name = (row[COL_NAME] || '').trim();
-      var apa = (row[COL_APA] || '').trim();
-      var skill = (row[COL_SKILL] || '').trim();
-      if (!name && !apa) continue;
-      var key = normalizeApa(apa) || ('name:' + normalizeName(name));
-      if (seenApa[key]) continue;
-      seenApa[key] = true;
-      signups.push({
-        rowNum: r + 1,
-        name: name,
-        apa: apa,
-        apaNorm: normalizeApa(apa),
-        nameNorm: normalizeNameSorted(name),
-        skill: skill
-      });
+      var rowSignups = extractSignupsFromRow(row, r + 1, cfg, def);
+      for (var i = 0; i < rowSignups.length; i++) {
+        var sig = rowSignups[i];
+        var key = sig.apaNorm || ('name:' + sig.nameNorm || ('row:' + r + ':' + i));
+        if (seen[key]) continue;
+        seen[key] = true;
+        signups.push(sig);
+        if (def.hasTeam) {
+          var tkey = sig.teamName || '(no team name)';
+          if (!teamMap[tkey]) teamMap[tkey] = [];
+          teamMap[tkey].push(sig);
+        }
+      }
     }
 
     // Build TMS lookup maps
     var byApa = {};
     var byName = {};
-    for (var i = 0; i < tbl.records.length; i++) {
-      var rec = tbl.records[i];
+    for (var t = 0; t < tbl.records.length; t++) {
+      var rec = tbl.records[t];
       var ak = normalizeApa(rec.APACARD);
       if (ak) byApa[ak] = rec;
       var nk = normalizeNameSorted(tmsName(rec));
@@ -1195,29 +1608,70 @@ async function loadAndCompare() {
     // Match each signup
     var matched = [];
     var unmatched = [];
-    for (var s = 0; s < signups.length; s++) {
-      var sig = signups[s];
+    var usedTmsKeys = {};  // track which TMS records were matched
+    for (var j = 0; j < signups.length; j++) {
+      var sig2 = signups[j];
       var tmsRec = null;
       var via = '';
-      if (sig.apaNorm && byApa[sig.apaNorm]) {
-        tmsRec = byApa[sig.apaNorm];
+      if (sig2.apaNorm && byApa[sig2.apaNorm]) {
+        tmsRec = byApa[sig2.apaNorm];
         via = 'apa';
-      } else if (sig.nameNorm && byName[sig.nameNorm]) {
-        tmsRec = byName[sig.nameNorm];
+      } else if (sig2.nameNorm && byName[sig2.nameNorm]) {
+        tmsRec = byName[sig2.nameNorm];
         via = 'name';
       }
       if (tmsRec) {
-        matched.push({ form: sig, tms: tmsRec, via: via });
+        matched.push({ form: sig2, tms: tmsRec, via: via });
+        var mk = normalizeApa(tmsRec.APACARD) || normalizeNameSorted(tmsName(tmsRec));
+        if (mk) usedTmsKeys[mk] = true;
       } else {
-        unmatched.push(sig);
+        unmatched.push(sig2);
       }
     }
 
-    lastCompare = { matched: matched, unmatched: unmatched };
+    // Build the "in TMS but not in form signups" list
+    var tmsOnly = [];
+    for (var k = 0; k < tbl.records.length; k++) {
+      var rec2 = tbl.records[k];
+      var mk2 = normalizeApa(rec2.APACARD) || normalizeNameSorted(tmsName(rec2));
+      if (!mk2) continue;
+      if (!usedTmsKeys[mk2]) tmsOnly.push(rec2);
+    }
 
+    // Build team groups (team events only). Each team contains its
+    // signups, each decorated with match status + TMS record if matched.
+    var teams = [];
+    if (def.hasTeam) {
+      var matchedBySigKey = {};
+      for (var m = 0; m < matched.length; m++) {
+        var msig = matched[m].form;
+        var mkk = msig.apaNorm || ('name:' + msig.nameNorm);
+        matchedBySigKey[mkk] = matched[m];
+      }
+      Object.keys(teamMap).sort().forEach(function(tname) {
+        var ps = teamMap[tname].map(function(sig3) {
+          var key = sig3.apaNorm || ('name:' + sig3.nameNorm);
+          var mrow = matchedBySigKey[key] || null;
+          return {
+            sig: sig3,
+            matched: !!mrow,
+            flagged: mrow ? isFlagged(mrow) : false,
+            tms: mrow ? mrow.tms : null,
+            via: mrow ? mrow.via : ''
+          };
+        });
+        teams.push({ name: tname, players: ps });
+      });
+    }
+
+    s.lastCompare = { matched: matched, unmatched: unmatched, tmsOnly: tmsOnly, teams: teams };
+    saveState();
+
+    var summary = 'Loaded ' + signups.length + ' ' + def.label.toLowerCase() + ' signup(s): '
+      + matched.length + ' matched, ' + unmatched.length + ' unmatched, '
+      + tmsOnly.length + ' in TMS but not in form.';
     statusEl.className = 'status-line shown ok';
-    statusEl.textContent = 'Loaded ' + signups.length + ' singles signup(s): '
-      + matched.length + ' matched, ' + unmatched.length + ' unmatched.';
+    statusEl.textContent = summary;
 
     renderCompareResults();
   } catch (e) {
@@ -1230,12 +1684,129 @@ async function loadAndCompare() {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// Sheet config card (editable, per-event)
+// ════════════════════════════════════════════════════════════════════
+function renderSheetConfig() {
+  var s = S();
+  var def = getEventDef(currentEvent);
+  var cfg = s.sheetConfig;
+  var box = document.getElementById('sheetConfigCard');
+  if (!box) return;
+
+  var html = '<h4>Google Sheet source &mdash; ' + esc(def.label) + '</h4>';
+  html += '<div class="grid">';
+  html += '<div><label>Sheet URL or ID</label><input type="text" id="cfgSheetUrl" value="' + esc(cfg.sheetUrl) + '" placeholder="https://docs.google.com/spreadsheets/d/..."></div>';
+  html += '<div><label>Tab name</label><input type="text" id="cfgTabName" value="' + esc(cfg.tabName) + '" placeholder="All Signups"></div>';
+  if (def.hasTeam) {
+    html += '<div><label>Team name column</label><input type="text" id="cfgColTeam" value="' + esc(cfg.colTeam) + '" placeholder="e.g. L"></div>';
+  }
+  html += '</div>';
+
+  for (var i = 0; i < cfg.slots.length; i++) {
+    var slot = cfg.slots[i];
+    var slotLabel = def.playerSlots === 1 ? 'Player columns' : 'Player ' + (i + 1) + ' columns';
+    html += '<div class="slot-group">'
+         + '<div class="slot-group-title">' + esc(slotLabel) + '</div>'
+         + '<div class="col-grid">'
+         + '<div><label>Name</label><input type="text" class="col-letter" data-slot="' + i + '" data-key="colName" value="' + esc(slot.colName) + '"></div>'
+         + '<div><label>APA #</label><input type="text" class="col-letter" data-slot="' + i + '" data-key="colApa" value="' + esc(slot.colApa) + '"></div>'
+         + '<div><label>Skill</label><input type="text" class="col-letter" data-slot="' + i + '" data-key="colSkill" value="' + esc(slot.colSkill) + '"></div>'
+         + '</div></div>';
+  }
+
+  html += '<div class="row" style="display:flex;gap:8px;margin-top:8px">'
+       + '<button type="button" class="btn btn-primary btn-sm" onclick="saveSheetConfig()">Save config</button>'
+       + '<button type="button" class="btn btn-outline btn-sm" onclick="resetSheetConfig()">Reset to defaults</button>'
+       + '</div>';
+
+  box.innerHTML = html;
+}
+
+function saveSheetConfig() {
+  var s = S();
+  var cfg = s.sheetConfig;
+  var urlEl = document.getElementById('cfgSheetUrl');
+  var tabEl = document.getElementById('cfgTabName');
+  var teamEl = document.getElementById('cfgColTeam');
+  if (urlEl) cfg.sheetUrl = urlEl.value.trim();
+  if (tabEl) cfg.tabName = tabEl.value.trim() || DEFAULT_SHEET_TAB;
+  if (teamEl) cfg.colTeam = teamEl.value.trim().toUpperCase();
+  var inputs = document.querySelectorAll('#sheetConfigCard input.col-letter');
+  for (var i = 0; i < inputs.length; i++) {
+    var el = inputs[i];
+    var slotIdx = parseInt(el.dataset.slot, 10);
+    var key = el.dataset.key;
+    if (cfg.slots[slotIdx]) cfg.slots[slotIdx][key] = el.value.trim().toUpperCase();
+  }
+  saveState();
+  var statusEl = document.getElementById('compareStatus');
+  statusEl.className = 'status-line shown ok';
+  statusEl.textContent = 'Sheet config saved.';
+}
+
+function resetSheetConfig() {
+  var s = S();
+  s.sheetConfig = JSON.parse(JSON.stringify(DEFAULT_SHEET_CONFIGS[currentEvent]));
+  saveState();
+  renderSheetConfig();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Render compare results (matched / team cards / unmatched / tms-only)
+// ════════════════════════════════════════════════════════════════════
 function renderCompareResults() {
+  var s = S();
+  var def = getEventDef(currentEvent);
   var results = document.getElementById('compareResults');
-  var m = lastCompare.matched;
-  var u = lastCompare.unmatched;
+  var lc = s.lastCompare || { matched: [], unmatched: [], tmsOnly: [], teams: [] };
+  var m = lc.matched || [];
+  var u = lc.unmatched || [];
+  var tmsOnly = lc.tmsOnly || [];
+  var teams = lc.teams || [];
+
+  if (m.length === 0 && u.length === 0 && tmsOnly.length === 0 && teams.length === 0) {
+    results.innerHTML = '<div style="padding:12px;color:var(--muted);font-style:italic">Click <strong>Load Signups</strong> above to pull the sheet and compare.</div>';
+    return;
+  }
 
   var html = '';
+
+  // ── Team cards (team events only) ────────────────────────────────
+  if (def.hasTeam && teams.length > 0) {
+    html += '<div class="compare-section-title">Teams'
+         + '<span class="count">' + teams.length + '</span></div>';
+    html += '<div class="team-cards">';
+    for (var ti = 0; ti < teams.length; ti++) {
+      var team = teams[ti];
+      var missing = 0, flagged = 0, ok = 0;
+      for (var tp = 0; tp < team.players.length; tp++) {
+        var p = team.players[tp];
+        if (!p.matched) missing++;
+        else if (p.flagged) flagged++;
+        else ok++;
+      }
+      var dotClass = missing > 0 ? 'err' : (flagged > 0 ? 'warn' : 'ok');
+      html += '<div class="team-card"><h4><span class="team-dot ' + dotClass + '"></span>' + esc(team.name || '(no team name)') + '</h4><ul>';
+      for (var ps = 0; ps < team.players.length; ps++) {
+        var pl = team.players[ps];
+        var sigp = pl.sig;
+        var statusCls = 'err', statusTxt = 'Not in TMS';
+        if (pl.matched) {
+          statusCls = pl.flagged ? 'warn' : 'ok';
+          statusTxt = pl.flagged ? 'Flagged' : 'OK';
+        }
+        html += '<li>'
+             + '<span class="p-status ' + statusCls + '">' + statusTxt + '</span>'
+             + '<span class="p-name">' + esc(sigp.name) + '</span>'
+             + '<span class="p-apa">#' + esc(sigp.apa) + '</span>'
+             + '<span class="p-sl">SL' + esc(sigp.skill) + '</span>'
+             + '</li>';
+      }
+      html += '</ul></div>';
+    }
+    html += '</div>';
+  }
 
   // ── Matched list ─────────────────────────────────────────────────
   var flaggedCount = m.filter(isFlagged).length;
@@ -1251,7 +1822,6 @@ function renderCompareResults() {
   if (m.length === 0) {
     html += '<div style="padding:12px;color:var(--muted);font-style:italic">No matches.</div>';
   } else {
-    // Filter pills for cleaning up form data
     html += '<div class="filter-pills">'
          + matchedPillHtml('all',       'All (' + m.length + ')')
          + matchedPillHtml('flagged',   '\u26A0 Needs review (' + flaggedCount + ')')
@@ -1260,35 +1830,33 @@ function renderCompareResults() {
          + matchedPillHtml('skilldown', '\u2193 Skill down (' + skillDownCount + ')')
          + '</div>';
 
+    var mf = s.matchedFilter;
     var visibleMatched = m.filter(function(row) {
-      if (matchedFilter === 'flagged')   return isFlagged(row);
-      if (matchedFilter === 'clean')     return !isFlagged(row);
-      if (matchedFilter === 'skillup')   return skillWentUp(row);
-      if (matchedFilter === 'skilldown') return skillWentDown(row);
+      if (mf === 'flagged')   return isFlagged(row);
+      if (mf === 'clean')     return !isFlagged(row);
+      if (mf === 'skillup')   return skillWentUp(row);
+      if (mf === 'skilldown') return skillWentDown(row);
       return true;
     });
 
     if (visibleMatched.length === 0) {
       html += '<div style="padding:12px;color:var(--muted);font-style:italic">No rows in this filter.</div>';
     } else {
+      var teamCol = def.hasTeam ? '<th>Team</th>' : '';
       html += '<div class="table-wrap"><table class="table"><thead><tr>'
-           + '<th>Form APA #</th>'
-           + '<th>TMS APA #</th>'
-           + '<th>Form Name</th>'
-           + '<th>TMS Name</th>'
-           + '<th>Form SL</th>'
-           + '<th>TMS SL</th>'
+           + teamCol
+           + '<th>Form APA #</th><th>TMS APA #</th><th>Form Name</th><th>TMS Name</th><th>Form SL</th><th>TMS SL</th>'
            + '</tr></thead><tbody>';
-      for (var i = 0; i < visibleMatched.length; i++) {
-        var row = visibleMatched[i];
+      for (var vmi = 0; vmi < visibleMatched.length; vmi++) {
+        var row = visibleMatched[vmi];
         var f = matchFlags(row);
         var formApa = row.form.apa || '';
         var tmsNameStr = tmsName(row.tms);
         var tmsSL = tmsSkillLevel(row.tms);
         var byNameBadge = f.matchedByName ? ' <span class="match-by-name">by name</span>' : '';
-
         var showNameMismatch = f.nameMismatch && !ignoreNameDiffs;
-        html += '<tr>'
+        var teamCell = def.hasTeam ? '<td>' + esc(row.form.teamName || '') + '</td>' : '';
+        html += '<tr>' + teamCell
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
           + '<td class="' + (showNameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
@@ -1301,102 +1869,112 @@ function renderCompareResults() {
     }
   }
 
-  function matchedPillHtml(key, label) {
-    var active = matchedFilter === key ? ' active' : '';
-    return '<button type="button" class="filter-pill' + active + '" onclick="setMatchedFilter(\'' + key + '\')">'
-         + esc(label) + '</button>';
-  }
+  // ── Unmatched list (in form but not in TMS) ─────────────────────
+  var justAddedApaSet = {};
+  var justAddedNameSet = {};
+  s.justAddedApa.forEach(function(x) { justAddedApaSet[x] = true; });
+  s.justAddedName.forEach(function(x) { justAddedNameSet[x] = true; });
 
-  // ── Unmatched list ───────────────────────────────────────────────
-  // Decorate each unmatched row with its "just added" status
   var decorated = u.map(function(un) {
-    var added = (un.apaNorm && justAddedApa.has(un.apaNorm))
-             || (un.nameNorm && justAddedName.has(un.nameNorm));
+    var added = (un.apaNorm && justAddedApaSet[un.apaNorm])
+             || (un.nameNorm && justAddedNameSet[un.nameNorm]);
     return { un: un, added: added };
   });
   var pendingCount = decorated.filter(function(d) { return !d.added; }).length;
   var addedCount = decorated.filter(function(d) { return d.added; }).length;
 
-  var countBadgeClass = pendingCount > 0 ? 'err' : '';
-  html += '<div class="compare-section-title">Not in TMS &mdash; action required'
-       + '<span class="count ' + countBadgeClass + '">' + pendingCount + ' pending</span></div>';
+  html += '<div class="compare-section-title">In form but not in TMS &mdash; action required'
+       + '<span class="count ' + (pendingCount > 0 ? 'err' : '') + '">' + pendingCount + ' pending</span></div>';
 
   if (u.length === 0) {
-    html += '<div style="padding:12px;color:var(--success);font-weight:600">\u2713 Every form signup was matched to a TMS player. You\'re good.</div>';
+    html += '<div style="padding:12px;color:var(--success);font-weight:600">\u2713 Every form signup was matched to a TMS player.</div>';
   } else {
-    // ── Paste box ─────────────────────────────────────────────────
     html += '<div class="just-added-box">'
          + '<label>Mark players as "just added" to TMS</label>'
-         + '<textarea id="justAddedInput" placeholder="Paste one per line, tab between name and APA #:\n'
-         + 'John Doe\t98409194\n'
-         + 'Jane Smith\t97222393"'
-         + '></textarea>'
-         + '<div class="hint">'
-         + 'Anything you paste here is matched against the unmatched list by APA # first, then by name. '
-         + 'Marks persist in this browser so you can come back later.'
-         + '</div>'
+         + '<textarea id="justAddedInput" placeholder="Paste one per line, tab between name and APA #:\nJohn Doe\t98409194\nJane Smith\t97222393"></textarea>'
+         + '<div class="hint">Matched against the unmatched list by APA # first, then name. Marks persist in this browser.</div>'
          + '<div class="row">'
          + '<button type="button" class="btn btn-primary" onclick="applyJustAdded()">Apply</button>'
          + '<button type="button" class="btn btn-outline" onclick="clearJustAdded()">Clear all marks</button>'
-         + '<span style="color:var(--muted);font-size:0.8rem">'
-         + pendingCount + ' pending &middot; ' + addedCount + ' added'
-         + '</span>'
-         + '</div>'
-         + '</div>';
+         + '<span style="color:var(--muted);font-size:0.8rem">' + pendingCount + ' pending &middot; ' + addedCount + ' added</span>'
+         + '</div></div>';
 
-    // ── Filter pills ──────────────────────────────────────────────
     html += '<div class="filter-pills">'
-         + pillHtml('all',     'All (' + u.length + ')')
-         + pillHtml('pending', 'Not added yet (' + pendingCount + ')')
-         + pillHtml('added',   'Added (' + addedCount + ')')
+         + unmatchedPillHtml('all',     'All (' + u.length + ')')
+         + unmatchedPillHtml('pending', 'Not added yet (' + pendingCount + ')')
+         + unmatchedPillHtml('added',   'Added (' + addedCount + ')')
          + '</div>';
 
-    // ── Apply filter ──────────────────────────────────────────────
+    var uf = s.unmatchedFilter;
     var visible = decorated.filter(function(d) {
-      if (unmatchedFilter === 'pending') return !d.added;
-      if (unmatchedFilter === 'added') return d.added;
+      if (uf === 'pending') return !d.added;
+      if (uf === 'added')   return d.added;
       return true;
     });
 
     if (visible.length === 0) {
       html += '<div style="padding:12px;color:var(--muted);font-style:italic">No rows in this filter.</div>';
     } else {
+      var teamColU = def.hasTeam ? '<th>Team</th>' : '';
       html += '<div class="table-wrap"><table class="table"><thead><tr>'
-           + '<th>Added?</th>'
-           + '<th>Form APA #</th>'
-           + '<th>Form Name</th>'
-           + '<th>Form SL</th>'
+           + '<th>Added?</th>' + teamColU
+           + '<th>Form APA #</th><th>Form Name</th><th>Form SL</th>'
            + '</tr></thead><tbody>';
-      for (var j = 0; j < visible.length; j++) {
-        var un = visible[j].un;
-        var added = visible[j].added;
+      for (var vj = 0; vj < visible.length; vj++) {
+        var un2 = visible[vj].un;
+        var added = visible[vj].added;
+        var teamCell2 = def.hasTeam ? '<td>' + esc(un2.teamName || '') + '</td>' : '';
         html += '<tr' + (added ? ' class="just-added"' : '') + '>'
           + '<td>' + (added ? '<span class="badge-added">\u2713 Added</span>' : '') + '</td>'
-          + '<td>' + esc(un.apa) + '</td>'
-          + '<td>' + esc(un.name) + '</td>'
-          + '<td class="num">' + esc(un.skill) + '</td>'
+          + teamCell2
+          + '<td>' + esc(un2.apa) + '</td>'
+          + '<td>' + esc(un2.name) + '</td>'
+          + '<td class="num">' + esc(un2.skill) + '</td>'
           + '</tr>';
       }
       html += '</tbody></table></div>';
     }
   }
 
+  // ── In TMS but not in form ───────────────────────────────────────
+  html += '<div class="compare-section-title">In TMS but not in form signups'
+       + '<span class="count ' + (tmsOnly.length > 0 ? 'warn' : '') + '">' + tmsOnly.length + '</span></div>';
+
+  if (tmsOnly.length === 0) {
+    html += '<div style="padding:12px;color:var(--success);font-weight:600">\u2713 Every TMS player has a matching form signup.</div>';
+  } else {
+    html += '<div style="padding:8px 0;font-size:0.8rem;color:var(--muted);font-style:italic">These players are entered in TMS but no form signup was found. Either the player registered in-person (expected) or their form data differs enough that the matcher couldn\'t pair them up.</div>';
+    html += '<div class="table-wrap"><table class="table"><thead><tr>'
+         + '<th>TMS APA #</th><th>TMS Name</th><th>TMS SL</th>'
+         + '</tr></thead><tbody>';
+    for (var ti2 = 0; ti2 < tmsOnly.length; ti2++) {
+      var rec3 = tmsOnly[ti2];
+      html += '<tr>'
+        + '<td>' + esc(rec3.APACARD || '') + '</td>'
+        + '<td>' + esc(tmsName(rec3)) + '</td>'
+        + '<td class="num">' + esc(tmsSkillLevel(rec3)) + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+
   results.innerHTML = html;
 }
 
-function pillHtml(key, label) {
-  var active = unmatchedFilter === key ? ' active' : '';
+function matchedPillHtml(key, label) {
+  var active = S().matchedFilter === key ? ' active' : '';
+  return '<button type="button" class="filter-pill' + active + '" onclick="setMatchedFilter(\'' + key + '\')">'
+       + esc(label) + '</button>';
+}
+function unmatchedPillHtml(key, label) {
+  var active = S().unmatchedFilter === key ? ' active' : '';
   return '<button type="button" class="filter-pill' + active + '" onclick="setUnmatchedFilter(\'' + key + '\')">'
        + esc(label) + '</button>';
 }
 
-function setUnmatchedFilter(key) {
-  unmatchedFilter = key;
-  renderCompareResults();
-}
-
-// ─── "Just added" paste parsing ──────────────────────────────────────
+// ─── "Just added" paste parsing (per-event) ─────────────────────────
 function applyJustAdded() {
+  var s = S();
   var ta = document.getElementById('justAddedInput');
   if (!ta) return;
   var text = ta.value;
@@ -1406,56 +1984,53 @@ function applyJustAdded() {
   var matchedCount = 0;
   var skipped = [];
 
-  // Build a lookup from the current unmatched list so we can verify each
-  // pasted entry actually corresponds to a pending unmatched signup.
   var unmatchedByApa = {};
   var unmatchedByName = {};
-  for (var i = 0; i < lastCompare.unmatched.length; i++) {
-    var un = lastCompare.unmatched[i];
+  for (var i = 0; i < s.lastCompare.unmatched.length; i++) {
+    var un = s.lastCompare.unmatched[i];
     if (un.apaNorm) unmatchedByApa[un.apaNorm] = un;
     if (un.nameNorm) unmatchedByName[un.nameNorm] = un;
   }
 
+  var apaAdded = s.justAddedApa.slice();
+  var nameAdded = s.justAddedName.slice();
+  var addApa = function(v) { if (v && apaAdded.indexOf(v) === -1) apaAdded.push(v); };
+  var addName = function(v) { if (v && nameAdded.indexOf(v) === -1) nameAdded.push(v); };
+
   for (var l = 0; l < lines.length; l++) {
     var line = lines[l];
     if (!line.trim()) continue;
-
-    // Split on tab first (the user said "separated from name by a tab").
-    // Fall back to splitting on any whitespace run where the last token
-    // is all digits, to be forgiving of copy-paste oddities.
     var name, apaRaw;
     var tabIdx = line.indexOf('\t');
     if (tabIdx !== -1) {
       name = line.slice(0, tabIdx).trim();
       apaRaw = line.slice(tabIdx + 1).trim();
     } else {
-      // Last whitespace token = APA #
-      var m = line.match(/^(.*?)\s+(\S+)\s*$/);
-      if (m) { name = m[1].trim(); apaRaw = m[2].trim(); }
+      var mm = line.match(/^(.*?)\s+(\S+)\s*$/);
+      if (mm) { name = mm[1].trim(); apaRaw = mm[2].trim(); }
       else { name = line.trim(); apaRaw = ''; }
     }
-
     var apaNorm = normalizeApa(apaRaw);
     var nameNorm = normalizeNameSorted(name);
 
-    var matched = null;
-    if (apaNorm && unmatchedByApa[apaNorm]) matched = unmatchedByApa[apaNorm];
-    else if (nameNorm && unmatchedByName[nameNorm]) matched = unmatchedByName[nameNorm];
+    var matchedEntry = null;
+    if (apaNorm && unmatchedByApa[apaNorm]) matchedEntry = unmatchedByApa[apaNorm];
+    else if (nameNorm && unmatchedByName[nameNorm]) matchedEntry = unmatchedByName[nameNorm];
 
-    if (matched) {
-      if (matched.apaNorm) justAddedApa.add(matched.apaNorm);
-      if (matched.nameNorm) justAddedName.add(matched.nameNorm);
+    if (matchedEntry) {
+      addApa(matchedEntry.apaNorm);
+      addName(matchedEntry.nameNorm);
       matchedCount++;
     } else {
-      // Also mark by the pasted values so future loads catch them even if
-      // the form row doesn't exist at paste time.
-      if (apaNorm) justAddedApa.add(apaNorm);
-      if (nameNorm) justAddedName.add(nameNorm);
+      addApa(apaNorm);
+      addName(nameNorm);
       skipped.push(line.trim());
     }
   }
 
-  saveJustAdded();
+  s.justAddedApa = apaAdded;
+  s.justAddedName = nameAdded;
+  saveState();
   ta.value = '';
   renderCompareResults();
 
@@ -1471,41 +2046,49 @@ function applyJustAdded() {
 }
 
 function clearJustAdded() {
-  if (!confirm('Clear every "just added" mark? This cannot be undone.')) return;
-  justAddedApa = new Set();
-  justAddedName = new Set();
-  saveJustAdded();
+  if (!confirm('Clear every "just added" mark for this event?')) return;
+  var s = S();
+  s.justAddedApa = [];
+  s.justAddedName = [];
+  saveState();
   renderCompareResults();
 }
 
 // ─── CSV export of compare results ──────────────────────────────────
 function exportMatchedCsv() {
-  if (lastCompare.matched.length === 0) { alert('Run a compare first.'); return; }
-  var cols = ['Form APA #', 'TMS APA #', 'Form Name', 'TMS Name', 'Form SL', 'TMS SL'];
-  var out = cols.map(csvQuote).join(',');
-  for (var i = 0; i < lastCompare.matched.length; i++) {
-    var row = lastCompare.matched[i];
-    out += '\r\n' + [
-      row.form.apa,
-      row.tms.APACARD || '',
-      row.form.name,
-      tmsName(row.tms),
-      row.form.skill,
-      tmsSkillLevel(row.tms)
-    ].map(csvQuote).join(',');
+  var s = S();
+  var def = getEventDef(currentEvent);
+  if (s.lastCompare.matched.length === 0) { alert('Run a compare first.'); return; }
+  var baseCols = def.hasTeam
+    ? ['Team', 'Form APA #', 'TMS APA #', 'Form Name', 'TMS Name', 'Form SL', 'TMS SL']
+    : ['Form APA #', 'TMS APA #', 'Form Name', 'TMS Name', 'Form SL', 'TMS SL'];
+  var out = baseCols.map(csvQuote).join(',');
+  for (var i = 0; i < s.lastCompare.matched.length; i++) {
+    var row = s.lastCompare.matched[i];
+    var vals = def.hasTeam
+      ? [row.form.teamName, row.form.apa, row.tms.APACARD || '', row.form.name, tmsName(row.tms), row.form.skill, tmsSkillLevel(row.tms)]
+      : [row.form.apa, row.tms.APACARD || '', row.form.name, tmsName(row.tms), row.form.skill, tmsSkillLevel(row.tms)];
+    out += '\r\n' + vals.map(csvQuote).join(',');
   }
-  downloadCompareCsv('matched_singles_' + new Date().toISOString().slice(0, 10) + '.csv', out);
+  downloadCompareCsv('matched_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', out);
 }
 
 function exportUnmatchedCsv() {
-  if (lastCompare.unmatched.length === 0) { alert('Nothing unmatched — run a compare first.'); return; }
-  var cols = ['Form APA #', 'Form Name', 'Form SL'];
-  var out = cols.map(csvQuote).join(',');
-  for (var i = 0; i < lastCompare.unmatched.length; i++) {
-    var un = lastCompare.unmatched[i];
-    out += '\r\n' + [un.apa, un.name, un.skill].map(csvQuote).join(',');
+  var s = S();
+  var def = getEventDef(currentEvent);
+  if (s.lastCompare.unmatched.length === 0) { alert('Nothing unmatched — run a compare first.'); return; }
+  var baseCols = def.hasTeam
+    ? ['Team', 'Form APA #', 'Form Name', 'Form SL']
+    : ['Form APA #', 'Form Name', 'Form SL'];
+  var out = baseCols.map(csvQuote).join(',');
+  for (var i = 0; i < s.lastCompare.unmatched.length; i++) {
+    var un = s.lastCompare.unmatched[i];
+    var vals = def.hasTeam
+      ? [un.teamName, un.apa, un.name, un.skill]
+      : [un.apa, un.name, un.skill];
+    out += '\r\n' + vals.map(csvQuote).join(',');
   }
-  downloadCompareCsv('unmatched_singles_' + new Date().toISOString().slice(0, 10) + '.csv', out);
+  downloadCompareCsv('unmatched_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', out);
 }
 
 function downloadCompareCsv(filename, csv) {
