@@ -236,6 +236,92 @@
       background: #ffe8d4 !important;
       font-weight: 700;
     }
+
+    /* "Just added" paste box */
+    .just-added-box {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin: 8px 0 12px;
+    }
+    .just-added-box label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .just-added-box textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      resize: vertical;
+      background: #faf8f3;
+    }
+    .just-added-box textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(194,178,128,0.25);
+    }
+    .just-added-box .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .just-added-box .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    /* Filter pills */
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin: 4px 0 8px;
+    }
+    .filter-pill {
+      min-height: 32px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .filter-pill:hover { background: #faf8f3; }
+    .filter-pill.active {
+      background: var(--primary);
+      border-color: var(--primary-dark);
+      color: #000;
+    }
+
+    tr.just-added td {
+      background: #e6f4ea !important;
+      color: #1b5e20;
+    }
+    .badge-added {
+      display: inline-block;
+      background: #d4edda;
+      color: #155724;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.03em;
+    }
     .match-by-name {
       display: inline-block;
       background: #fff3cd;
@@ -691,6 +777,35 @@ var SINGLES_GAME = '8';  // 8-Ball Singles
 // Last compare results (kept so the export buttons work after render)
 var lastCompare = { matched: [], unmatched: [] };
 
+// Set of normalized APA #s the user has marked as "just added" by pasting
+// into the Just Added box. Also store a name-only set as fallback when the
+// paste has no APA number. Persisted to localStorage so the user can walk
+// away, enter players in TMS, and come back.
+var justAddedApa = new Set();
+var justAddedName = new Set();
+
+// Filter state for the unmatched table
+var unmatchedFilter = 'all'; // 'all' | 'pending' | 'added'
+
+function loadJustAdded() {
+  try {
+    var a = JSON.parse(localStorage.getItem('tmsviewer.justAdded.apa') || '[]');
+    var n = JSON.parse(localStorage.getItem('tmsviewer.justAdded.name') || '[]');
+    justAddedApa = new Set(Array.isArray(a) ? a : []);
+    justAddedName = new Set(Array.isArray(n) ? n : []);
+  } catch (e) {
+    justAddedApa = new Set();
+    justAddedName = new Set();
+  }
+}
+function saveJustAdded() {
+  try {
+    localStorage.setItem('tmsviewer.justAdded.apa', JSON.stringify(Array.from(justAddedApa)));
+    localStorage.setItem('tmsviewer.justAdded.name', JSON.stringify(Array.from(justAddedName)));
+  } catch (e) {}
+}
+loadJustAdded();
+
 // ─── CSV parser (handles quoted fields with embedded commas/newlines) ─
 function parseCsvText(text) {
   var rows = [];
@@ -921,29 +1036,174 @@ function renderCompareResults() {
   }
 
   // ── Unmatched list ───────────────────────────────────────────────
-  var countClass = u.length > 0 ? 'err' : 'count';
-  html += '<div class="compare-section-title">Not in TMS — action required'
-       + '<span class="count ' + (u.length > 0 ? 'err' : '') + '">' + u.length + '</span></div>';
+  // Decorate each unmatched row with its "just added" status
+  var decorated = u.map(function(un) {
+    var added = (un.apaNorm && justAddedApa.has(un.apaNorm))
+             || (un.nameNorm && justAddedName.has(un.nameNorm));
+    return { un: un, added: added };
+  });
+  var pendingCount = decorated.filter(function(d) { return !d.added; }).length;
+  var addedCount = decorated.filter(function(d) { return d.added; }).length;
+
+  var countBadgeClass = pendingCount > 0 ? 'err' : '';
+  html += '<div class="compare-section-title">Not in TMS &mdash; action required'
+       + '<span class="count ' + countBadgeClass + '">' + pendingCount + ' pending</span></div>';
+
   if (u.length === 0) {
     html += '<div style="padding:12px;color:var(--success);font-weight:600">\u2713 Every form signup was matched to a TMS player. You\'re good.</div>';
   } else {
-    html += '<div class="table-wrap"><table class="table"><thead><tr>'
-         + '<th>Form APA #</th>'
-         + '<th>Form Name</th>'
-         + '<th>Form SL</th>'
-         + '</tr></thead><tbody>';
-    for (var j = 0; j < u.length; j++) {
-      var un = u[j];
-      html += '<tr>'
-        + '<td>' + esc(un.apa) + '</td>'
-        + '<td>' + esc(un.name) + '</td>'
-        + '<td class="num">' + esc(un.skill) + '</td>'
-        + '</tr>';
+    // ── Paste box ─────────────────────────────────────────────────
+    html += '<div class="just-added-box">'
+         + '<label>Mark players as "just added" to TMS</label>'
+         + '<textarea id="justAddedInput" placeholder="Paste one per line, tab between name and APA #:\n'
+         + 'John Doe\t98409194\n'
+         + 'Jane Smith\t97222393"'
+         + '></textarea>'
+         + '<div class="hint">'
+         + 'Anything you paste here is matched against the unmatched list by APA # first, then by name. '
+         + 'Marks persist in this browser so you can come back later.'
+         + '</div>'
+         + '<div class="row">'
+         + '<button type="button" class="btn btn-primary" onclick="applyJustAdded()">Apply</button>'
+         + '<button type="button" class="btn btn-outline" onclick="clearJustAdded()">Clear all marks</button>'
+         + '<span style="color:var(--muted);font-size:0.8rem">'
+         + pendingCount + ' pending &middot; ' + addedCount + ' added'
+         + '</span>'
+         + '</div>'
+         + '</div>';
+
+    // ── Filter pills ──────────────────────────────────────────────
+    html += '<div class="filter-pills">'
+         + pillHtml('all',     'All (' + u.length + ')')
+         + pillHtml('pending', 'Not added yet (' + pendingCount + ')')
+         + pillHtml('added',   'Added (' + addedCount + ')')
+         + '</div>';
+
+    // ── Apply filter ──────────────────────────────────────────────
+    var visible = decorated.filter(function(d) {
+      if (unmatchedFilter === 'pending') return !d.added;
+      if (unmatchedFilter === 'added') return d.added;
+      return true;
+    });
+
+    if (visible.length === 0) {
+      html += '<div style="padding:12px;color:var(--muted);font-style:italic">No rows in this filter.</div>';
+    } else {
+      html += '<div class="table-wrap"><table class="table"><thead><tr>'
+           + '<th>Added?</th>'
+           + '<th>Form APA #</th>'
+           + '<th>Form Name</th>'
+           + '<th>Form SL</th>'
+           + '</tr></thead><tbody>';
+      for (var j = 0; j < visible.length; j++) {
+        var un = visible[j].un;
+        var added = visible[j].added;
+        html += '<tr' + (added ? ' class="just-added"' : '') + '>'
+          + '<td>' + (added ? '<span class="badge-added">\u2713 Added</span>' : '') + '</td>'
+          + '<td>' + esc(un.apa) + '</td>'
+          + '<td>' + esc(un.name) + '</td>'
+          + '<td class="num">' + esc(un.skill) + '</td>'
+          + '</tr>';
+      }
+      html += '</tbody></table></div>';
     }
-    html += '</tbody></table></div>';
   }
 
   results.innerHTML = html;
+}
+
+function pillHtml(key, label) {
+  var active = unmatchedFilter === key ? ' active' : '';
+  return '<button type="button" class="filter-pill' + active + '" onclick="setUnmatchedFilter(\'' + key + '\')">'
+       + esc(label) + '</button>';
+}
+
+function setUnmatchedFilter(key) {
+  unmatchedFilter = key;
+  renderCompareResults();
+}
+
+// ─── "Just added" paste parsing ──────────────────────────────────────
+function applyJustAdded() {
+  var ta = document.getElementById('justAddedInput');
+  if (!ta) return;
+  var text = ta.value;
+  if (!text.trim()) { alert('Paste some names and APA numbers first.'); return; }
+
+  var lines = text.split(/\r?\n/);
+  var matchedCount = 0;
+  var skipped = [];
+
+  // Build a lookup from the current unmatched list so we can verify each
+  // pasted entry actually corresponds to a pending unmatched signup.
+  var unmatchedByApa = {};
+  var unmatchedByName = {};
+  for (var i = 0; i < lastCompare.unmatched.length; i++) {
+    var un = lastCompare.unmatched[i];
+    if (un.apaNorm) unmatchedByApa[un.apaNorm] = un;
+    if (un.nameNorm) unmatchedByName[un.nameNorm] = un;
+  }
+
+  for (var l = 0; l < lines.length; l++) {
+    var line = lines[l];
+    if (!line.trim()) continue;
+
+    // Split on tab first (the user said "separated from name by a tab").
+    // Fall back to splitting on any whitespace run where the last token
+    // is all digits, to be forgiving of copy-paste oddities.
+    var name, apaRaw;
+    var tabIdx = line.indexOf('\t');
+    if (tabIdx !== -1) {
+      name = line.slice(0, tabIdx).trim();
+      apaRaw = line.slice(tabIdx + 1).trim();
+    } else {
+      // Last whitespace token = APA #
+      var m = line.match(/^(.*?)\s+(\S+)\s*$/);
+      if (m) { name = m[1].trim(); apaRaw = m[2].trim(); }
+      else { name = line.trim(); apaRaw = ''; }
+    }
+
+    var apaNorm = normalizeApa(apaRaw);
+    var nameNorm = normalizeNameSorted(name);
+
+    var matched = null;
+    if (apaNorm && unmatchedByApa[apaNorm]) matched = unmatchedByApa[apaNorm];
+    else if (nameNorm && unmatchedByName[nameNorm]) matched = unmatchedByName[nameNorm];
+
+    if (matched) {
+      if (matched.apaNorm) justAddedApa.add(matched.apaNorm);
+      if (matched.nameNorm) justAddedName.add(matched.nameNorm);
+      matchedCount++;
+    } else {
+      // Also mark by the pasted values so future loads catch them even if
+      // the form row doesn't exist at paste time.
+      if (apaNorm) justAddedApa.add(apaNorm);
+      if (nameNorm) justAddedName.add(nameNorm);
+      skipped.push(line.trim());
+    }
+  }
+
+  saveJustAdded();
+  ta.value = '';
+  renderCompareResults();
+
+  var msg = 'Marked ' + matchedCount + ' as added.';
+  if (skipped.length > 0) {
+    msg += ' ' + skipped.length + ' didn\'t match the unmatched list but were still saved: '
+         + skipped.slice(0, 3).join(' / ')
+         + (skipped.length > 3 ? ' \u2026' : '');
+  }
+  var statusEl = document.getElementById('compareStatus');
+  statusEl.className = 'status-line shown ok';
+  statusEl.textContent = msg;
+}
+
+function clearJustAdded() {
+  if (!confirm('Clear every "just added" mark? This cannot be undone.')) return;
+  justAddedApa = new Set();
+  justAddedName = new Set();
+  saveJustAdded();
+  renderCompareResults();
 }
 
 // ─── CSV export of compare results ──────────────────────────────────
