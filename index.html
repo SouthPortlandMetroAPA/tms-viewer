@@ -966,7 +966,24 @@ var justAddedName = new Set();
 var unmatchedFilter = 'all'; // 'all' | 'pending' | 'added'
 
 // Filter state for the matched table
-var matchedFilter = 'all'; // 'all' | 'flagged' | 'clean'
+var matchedFilter = 'all'; // 'all' | 'flagged' | 'clean' | 'skillup' | 'skilldown'
+
+// Return { form, tms, delta } as numbers if both skill values are present
+// and parse cleanly as numbers, otherwise null. Used for the skill-change
+// filters on the matched table.
+function parseSkillPair(row) {
+  var formRaw = row.form.skill;
+  var tmsRaw = tmsSkillLevel(row.tms);
+  if (formRaw == null || formRaw === '') return null;
+  if (tmsRaw == null || tmsRaw === '') return null;
+  var formNum = parseFloat(String(formRaw).replace(/[^\d.]/g, ''));
+  var tmsNum = parseFloat(String(tmsRaw).replace(/[^\d.]/g, ''));
+  if (isNaN(formNum) || isNaN(tmsNum)) return null;
+  return { form: formNum, tms: tmsNum, delta: tmsNum - formNum };
+}
+
+function skillWentUp(row)   { var p = parseSkillPair(row); return p != null && p.delta > 0; }
+function skillWentDown(row) { var p = parseSkillPair(row); return p != null && p.delta < 0; }
 
 // User preference: ignore name-only differences when deciding what to flag.
 // Loaded from localStorage so it persists across sessions.
@@ -1223,6 +1240,8 @@ function renderCompareResults() {
   // ── Matched list ─────────────────────────────────────────────────
   var flaggedCount = m.filter(isFlagged).length;
   var cleanCount = m.length - flaggedCount;
+  var skillUpCount = m.filter(skillWentUp).length;
+  var skillDownCount = m.filter(skillWentDown).length;
 
   html += '<div class="compare-section-title">Matched in TMS'
        + '<span class="count ' + (flaggedCount > 0 ? 'warn' : '') + '">'
@@ -1234,15 +1253,18 @@ function renderCompareResults() {
   } else {
     // Filter pills for cleaning up form data
     html += '<div class="filter-pills">'
-         + matchedPillHtml('all',     'All (' + m.length + ')')
-         + matchedPillHtml('flagged', '\u26A0 Needs review (' + flaggedCount + ')')
-         + matchedPillHtml('clean',   '\u2713 Clean (' + cleanCount + ')')
+         + matchedPillHtml('all',       'All (' + m.length + ')')
+         + matchedPillHtml('flagged',   '\u26A0 Needs review (' + flaggedCount + ')')
+         + matchedPillHtml('clean',     '\u2713 Clean (' + cleanCount + ')')
+         + matchedPillHtml('skillup',   '\u2191 Skill up (' + skillUpCount + ')')
+         + matchedPillHtml('skilldown', '\u2193 Skill down (' + skillDownCount + ')')
          + '</div>';
 
     var visibleMatched = m.filter(function(row) {
-      var flagged = isFlagged(row);
-      if (matchedFilter === 'flagged') return flagged;
-      if (matchedFilter === 'clean') return !flagged;
+      if (matchedFilter === 'flagged')   return isFlagged(row);
+      if (matchedFilter === 'clean')     return !isFlagged(row);
+      if (matchedFilter === 'skillup')   return skillWentUp(row);
+      if (matchedFilter === 'skilldown') return skillWentDown(row);
       return true;
     });
 
