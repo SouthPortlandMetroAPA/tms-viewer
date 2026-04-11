@@ -787,6 +787,35 @@ var justAddedName = new Set();
 // Filter state for the unmatched table
 var unmatchedFilter = 'all'; // 'all' | 'pending' | 'added'
 
+// Filter state for the matched table
+var matchedFilter = 'all'; // 'all' | 'flagged' | 'clean'
+
+// Compute the flags for a matched row (kept centralized so the filter
+// and the render code always agree).
+function matchFlags(row) {
+  var formApaNorm = row.form.apaNorm;
+  var tmsApaNorm = normalizeApa(row.tms.APACARD);
+  var formName = row.form.name;
+  var tmsNameStr = tmsName(row.tms);
+  var formSL = row.form.skill;
+  var tmsSL = tmsSkillLevel(row.tms);
+  return {
+    apaMismatch:   !!(formApaNorm && tmsApaNorm && formApaNorm !== tmsApaNorm),
+    nameMismatch:  normalizeNameSorted(formName) !== normalizeNameSorted(tmsNameStr),
+    skillMismatch: !!(formSL && tmsSL && String(formSL).trim() !== String(tmsSL).trim()),
+    matchedByName: row.via === 'name'
+  };
+}
+function isFlagged(row) {
+  var f = matchFlags(row);
+  return f.apaMismatch || f.nameMismatch || f.skillMismatch || f.matchedByName;
+}
+
+function setMatchedFilter(key) {
+  matchedFilter = key;
+  renderCompareResults();
+}
+
 function loadJustAdded() {
   try {
     var a = JSON.parse(localStorage.getItem('tmsviewer.justAdded.apa') || '[]');
@@ -996,43 +1025,67 @@ function renderCompareResults() {
   var html = '';
 
   // ── Matched list ─────────────────────────────────────────────────
-  html += '<div class="compare-section-title">Matched in TMS'
-       + '<span class="count">' + m.length + '</span></div>';
-  if (m.length === 0) {
-    html += '<div class="muted-note" style="padding:12px;color:var(--muted);font-style:italic">No matches.</div>';
-  } else {
-    html += '<div class="table-wrap"><table class="table"><thead><tr>'
-         + '<th>Form APA #</th>'
-         + '<th>TMS APA #</th>'
-         + '<th>Form Name</th>'
-         + '<th>TMS Name</th>'
-         + '<th>Form SL</th>'
-         + '<th>TMS SL</th>'
-         + '</tr></thead><tbody>';
-    for (var i = 0; i < m.length; i++) {
-      var row = m[i];
-      var formApa = row.form.apa || '';
-      var formApaNorm = row.form.apaNorm;
-      var tmsApaNorm = normalizeApa(row.tms.APACARD);
-      var formName = row.form.name;
-      var tmsNameStr = tmsName(row.tms);
-      var formSL = row.form.skill;
-      var tmsSL = tmsSkillLevel(row.tms);
-      var apaMismatch = formApaNorm && tmsApaNorm && formApaNorm !== tmsApaNorm;
-      var nameMismatch = normalizeNameSorted(formName) !== normalizeNameSorted(tmsNameStr);
-      var skillMismatch = formSL && tmsSL && String(formSL).trim() !== String(tmsSL).trim();
-      var byNameBadge = row.via === 'name' ? ' <span class="match-by-name">by name</span>' : '';
+  var flaggedCount = m.filter(isFlagged).length;
+  var cleanCount = m.length - flaggedCount;
 
-      html += '<tr>'
-        + '<td class="' + (apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
-        + '<td class="' + (apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
-        + '<td class="' + (nameMismatch ? 'mismatch' : '') + '">' + esc(formName) + byNameBadge + '</td>'
-        + '<td class="' + (nameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
-        + '<td class="' + (skillMismatch ? 'mismatch' : '') + ' num">' + esc(formSL) + '</td>'
-        + '<td class="' + (skillMismatch ? 'mismatch' : '') + ' num">' + esc(tmsSL) + '</td>'
-        + '</tr>';
+  html += '<div class="compare-section-title">Matched in TMS'
+       + '<span class="count ' + (flaggedCount > 0 ? 'warn' : '') + '">'
+       + m.length + ' total &middot; ' + flaggedCount + ' flagged'
+       + '</span></div>';
+
+  if (m.length === 0) {
+    html += '<div style="padding:12px;color:var(--muted);font-style:italic">No matches.</div>';
+  } else {
+    // Filter pills for cleaning up form data
+    html += '<div class="filter-pills">'
+         + matchedPillHtml('all',     'All (' + m.length + ')')
+         + matchedPillHtml('flagged', '\u26A0 Needs review (' + flaggedCount + ')')
+         + matchedPillHtml('clean',   '\u2713 Clean (' + cleanCount + ')')
+         + '</div>';
+
+    var visibleMatched = m.filter(function(row) {
+      var flagged = isFlagged(row);
+      if (matchedFilter === 'flagged') return flagged;
+      if (matchedFilter === 'clean') return !flagged;
+      return true;
+    });
+
+    if (visibleMatched.length === 0) {
+      html += '<div style="padding:12px;color:var(--muted);font-style:italic">No rows in this filter.</div>';
+    } else {
+      html += '<div class="table-wrap"><table class="table"><thead><tr>'
+           + '<th>Form APA #</th>'
+           + '<th>TMS APA #</th>'
+           + '<th>Form Name</th>'
+           + '<th>TMS Name</th>'
+           + '<th>Form SL</th>'
+           + '<th>TMS SL</th>'
+           + '</tr></thead><tbody>';
+      for (var i = 0; i < visibleMatched.length; i++) {
+        var row = visibleMatched[i];
+        var f = matchFlags(row);
+        var formApa = row.form.apa || '';
+        var tmsNameStr = tmsName(row.tms);
+        var tmsSL = tmsSkillLevel(row.tms);
+        var byNameBadge = f.matchedByName ? ' <span class="match-by-name">by name</span>' : '';
+
+        html += '<tr>'
+          + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
+          + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
+          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
+          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
+          + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(row.form.skill) + '</td>'
+          + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(tmsSL) + '</td>'
+          + '</tr>';
+      }
+      html += '</tbody></table></div>';
     }
-    html += '</tbody></table></div>';
+  }
+
+  function matchedPillHtml(key, label) {
+    var active = matchedFilter === key ? ' active' : '';
+    return '<button type="button" class="filter-pill' + active + '" onclick="setMatchedFilter(\'' + key + '\')">'
+         + esc(label) + '</button>';
   }
 
   // ── Unmatched list ───────────────────────────────────────────────
