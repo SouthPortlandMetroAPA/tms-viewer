@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#c2b280">
+  <title>TMS Viewer — Admin</title>
+  <style>
+    :root {
+      --primary: #c2b280;
+      --primary-dark: #b5a574;
+      --bg: #f5f0e8;
+      --text: #000000;
+      --card: #ffffff;
+      --muted: #666666;
+      --border: #d4c9a8;
+      --radius: 10px;
+      --spacing: 4px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px; line-height: 1.5;
+      background: var(--bg); color: var(--text);
+    }
+    .page { max-width: 980px; margin: 0 auto; padding: calc(var(--spacing) * 4); }
+
+    .header {
+      background: var(--primary);
+      padding: calc(var(--spacing) * 5) calc(var(--spacing) * 4) calc(var(--spacing) * 6);
+      text-align: center;
+      border-radius: var(--radius);
+      margin-bottom: calc(var(--spacing) * 4);
+      position: relative;
+      overflow: hidden;
+    }
+    .header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+    .header .subtitle { font-size: 1rem; font-style: italic; margin-top: 4px; }
+    .header .back-link {
+      position: absolute; top: 10px; left: 12px;
+      background: rgba(255,255,255,0.55); color: #000;
+      font-size: 0.75rem; font-weight: 700;
+      padding: 6px 12px; border-radius: 999px;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+    }
+    .header .back-link:hover { background: #fff; }
+    .header .wave {
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 12px;
+      background: var(--bg);
+      -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M0,6 Q12.5,0 25,6 T50,6 T75,6 T100,6 L100,12 L0,12 Z' fill='%23000'/%3E%3C/svg%3E");
+      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M0,6 Q12.5,0 25,6 T50,6 T75,6 T100,6 L100,12 L0,12 Z' fill='%23000'/%3E%3C/svg%3E");
+      -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: calc(var(--spacing) * 6);
+      margin-bottom: calc(var(--spacing) * 4);
+      box-shadow: var(--shadow);
+    }
+    .card h2 { margin: 0 0 calc(var(--spacing) * 2); font-size: 1.1rem; }
+    .card .hint { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 12px; }
+
+    /* Game tabs */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: calc(var(--spacing) * 3);
+      flex-wrap: wrap;
+    }
+    .tab {
+      flex: 1;
+      min-width: 100px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .tab:hover { background: #faf8f3; }
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #000;
+    }
+
+    /* Search for columns */
+    .search-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font: inherit; font-size: 1rem;
+      background: #fff;
+      margin-bottom: 12px;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(194,178,128,0.25);
+    }
+
+    /* Column groups */
+    .col-group { margin-bottom: 20px; }
+    .col-group h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin: 16px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .col-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 6px;
+    }
+    .col-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.85rem;
+      user-select: none;
+      min-height: 40px;
+    }
+    .col-chip input { width: 16px; height: 16px; accent-color: var(--primary); }
+    .col-chip:hover { background: #faf8f3; }
+    .col-chip.selected { background: #f0e9d4; border-color: var(--primary); }
+    .col-chip code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; color: var(--muted); }
+
+    /* Selected summary */
+    .selected-box {
+      background: #faf8f3;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 16px;
+      min-height: 48px;
+    }
+    .selected-box .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .selected-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .selected-pill {
+      background: var(--primary);
+      color: #000;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn {
+      display: inline-block;
+      min-height: 44px;
+      padding: 8px 20px;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: #000; border: 1px solid var(--border); }
+    .btn-outline:hover { background: #faf8f3; }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #9a221a; }
+
+    .empty-note {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: calc(var(--spacing) * 4) 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="header">
+    <a class="back-link" href="index.html">&larr; Back</a>
+    <h1>TMS Viewer — Admin</h1>
+    <div class="subtitle">Column configuration</div>
+    <div class="wave"></div>
+  </header>
+
+  <div class="card">
+    <h2>Select columns to display</h2>
+    <p class="hint">
+      Pick which TMS fields appear in the table on the main page. Preferences
+      are saved per game type to this browser only (localStorage — nothing is
+      uploaded). Defaults: <code>APACARD, FIRST, LAST, TSKL1</code>.
+    </p>
+
+    <div class="tabs">
+      <button type="button" class="tab active" data-game="8" onclick="switchGame('8')">8-Ball</button>
+      <button type="button" class="tab" data-game="9" onclick="switchGame('9')">9-Ball</button>
+    </div>
+
+    <div class="selected-box">
+      <div class="label">Selected (in display order)</div>
+      <div class="selected-list" id="selectedList"></div>
+    </div>
+
+    <input type="text" class="search-input" id="searchInput" placeholder="Filter fields..." oninput="renderFields()">
+
+    <div id="fieldList">
+      <div class="empty-note">Loading field list...</div>
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" onclick="saveColumns()">Save</button>
+      <button type="button" class="btn btn-outline" onclick="resetDefaults()">Reset to defaults</button>
+      <button type="button" class="btn btn-outline" onclick="selectAll()">Select all</button>
+      <button type="button" class="btn btn-outline" onclick="selectNone()">Select none</button>
+    </div>
+  </div>
+
+  <div class="footer">Drop a TMS zip on the main page first to see every field actually present in your export.</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// Admin page — column picker
+// ════════════════════════════════════════════════════════════════════
+// Works in two modes:
+//   1. If the user previously dropped a zip, we cached the field list in
+//      sessionStorage under `tmsviewer.fields.<game>`. Use that.
+//   2. Otherwise fall back to the hardcoded TMS Tscore8/9 schema so the
+//      admin page is usable on first visit without a zip loaded.
+
+var DEFAULT_COLUMNS = ['APACARD', 'FIRST', 'LAST', 'TSKL1'];
+
+// Canonical field list from APA TMS Tscore8/9 (identical schema between
+// the two games except for Ps8Change vs Ps9Change).
+var CANONICAL_FIELDS = {
+  core:   ['APACARD','PCODE','FIRST','MINIT','LAST'],
+  teams:  ['TNUM1','TNUM2','TNUM3','TNUM4','TNUM5','TNUM6','TNUM7'],
+  skills: ['TSKL1','TSKL2','TSKL3','TSKL4','TSKL5','TSKL6','TSKL7','BESTSKILL','LOWSKILL','OHA'],
+  safeties:['SFTY1','SFTY2','SFTY3','SFTY4','SFTY5','SFTY6','SFTY7'],
+  points: ['PTS1','PTS2','PTS3','PTS4','PTS5','PTS6','PTS7','TPOINTSWON'],
+  session:['MWTY','MPTY','PPTY','TMPLAYED','TMWON'],
+  perteam:['MP1','MW1','MP2','MW2','MP3','MW3','MP4','MW4','MP5','MW5','MP6','MW6','MP7','MW7',
+           'TSTAVG1','TSTAVG2','TSTAVG3','TSTAVG4','TSTAVG5','TSTAVG6','TSTAVG7',
+           'TOPGUN1','TOPGUN2','TOPGUN3','TOPGUN4','TOPGUN5','TOPGUN6','TOPGUN7'],
+  matches30: (function() {
+    var list = [];
+    for (var i = 1; i <= 30; i++) {
+      list.push('SCR' + i, 'SS' + i, 'OP' + i, 'SCID' + i, 'DSHOT' + i, 'SKLSHT' + i);
+    }
+    return list;
+  })()
+};
+
+var FIELD_LABELS = {
+  APACARD:'APA #', PCODE:'Member Code', FIRST:'First', MINIT:'M.I.', LAST:'Last',
+  TSKL1:'Skill (T1)', TSKL2:'Skill (T2)', TSKL3:'Skill (T3)', TSKL4:'Skill (T4)',
+  TSKL5:'Skill (T5)', TSKL6:'Skill (T6)', TSKL7:'Skill (T7)',
+  BESTSKILL:'Best Skill', LOWSKILL:'Low Skill', OHA:'Overall HA',
+  TNUM1:'Team 1', TNUM2:'Team 2', TNUM3:'Team 3', TNUM4:'Team 4',
+  TNUM5:'Team 5', TNUM6:'Team 6', TNUM7:'Team 7',
+  TMPLAYED:'Matches Played', TMWON:'Matches Won', TPOINTSWON:'Points Won',
+  MWTY:'MWTY', MPTY:'MPTY', PPTY:'PPTY'
+};
+
+var GROUPS = [
+  { key: 'core',     title: 'Player identity' },
+  { key: 'skills',   title: 'Skill levels' },
+  { key: 'teams',    title: 'Team numbers' },
+  { key: 'points',   title: 'Points' },
+  { key: 'safeties', title: 'Safeties' },
+  { key: 'session',  title: 'Session totals' },
+  { key: 'perteam',  title: 'Per-team stats' },
+  { key: 'matches30',title: 'Last 30 matches' }
+];
+
+// ────────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────────
+var currentGame = '8';
+// Per game, the list of currently-selected columns (order matters)
+var selected = { '8': [], '9': [] };
+
+// ────────────────────────────────────────────────────────────────────
+// Load / save
+// ────────────────────────────────────────────────────────────────────
+function loadColumns(game) {
+  try {
+    var saved = localStorage.getItem('tmsviewer.columns.' + game);
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr)) return arr;
+    }
+  } catch (e) {}
+  return DEFAULT_COLUMNS.slice();
+}
+function saveColumnsFor(game, arr) {
+  localStorage.setItem('tmsviewer.columns.' + game, JSON.stringify(arr));
+}
+
+// Get the list of fields we should show as options. Prefer the real
+// field list from the loaded zip (if the user used the main page in
+// this session); otherwise fall back to canonical schema.
+function availableFields(game) {
+  try {
+    var saved = sessionStorage.getItem('tmsviewer.fields.' + game);
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+  } catch (e) {}
+  // Flatten canonical groups
+  var all = [];
+  for (var i = 0; i < GROUPS.length; i++) {
+    all = all.concat(CANONICAL_FIELDS[GROUPS[i].key]);
+  }
+  return all;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Rendering
+// ────────────────────────────────────────────────────────────────────
+function switchGame(game) {
+  currentGame = game;
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', tabs[i].dataset.game === game);
+  }
+  renderSelected();
+  renderFields();
+}
+
+function renderSelected() {
+  var list = document.getElementById('selectedList');
+  var sel = selected[currentGame];
+  if (sel.length === 0) {
+    list.innerHTML = '<span style="color:var(--muted);font-style:italic;font-size:0.85rem">(nothing selected — main page will use defaults)</span>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < sel.length; i++) {
+    html += '<span class="selected-pill">' + esc(labelFor(sel[i])) + '</span>';
+  }
+  list.innerHTML = html;
+}
+
+function renderFields() {
+  var container = document.getElementById('fieldList');
+  var available = availableFields(currentGame);
+  var availableSet = {};
+  for (var i = 0; i < available.length; i++) availableSet[available[i]] = true;
+
+  var q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  var sel = selected[currentGame];
+  var selSet = {};
+  for (var s = 0; s < sel.length; s++) selSet[sel[s]] = true;
+
+  var html = '';
+  var anyShown = false;
+
+  for (var g = 0; g < GROUPS.length; g++) {
+    var group = GROUPS[g];
+    var fields = CANONICAL_FIELDS[group.key].filter(function(f) {
+      if (!availableSet[f]) return false;
+      if (q && !matchesQuery(f, q)) return false;
+      return true;
+    });
+    if (fields.length === 0) continue;
+    anyShown = true;
+
+    html += '<div class="col-group"><h3>' + esc(group.title) + '</h3><div class="col-grid">';
+    for (var k = 0; k < fields.length; k++) {
+      var f = fields[k];
+      var checked = selSet[f];
+      html += '<label class="col-chip' + (checked ? ' selected' : '') + '">'
+        + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleField(\'' + esc(f) + '\', this.checked)">'
+        + '<span><strong>' + esc(labelFor(f)) + '</strong><br><code>' + esc(f) + '</code></span>'
+        + '</label>';
+    }
+    html += '</div></div>';
+  }
+
+  // Also show any "unknown" fields from the loaded zip that aren't in the canonical groups
+  var grouped = {};
+  for (var gg = 0; gg < GROUPS.length; gg++) {
+    var fs = CANONICAL_FIELDS[GROUPS[gg].key];
+    for (var fi = 0; fi < fs.length; fi++) grouped[fs[fi]] = true;
+  }
+  var orphans = available.filter(function(f) { return !grouped[f] && (!q || matchesQuery(f, q)); });
+  if (orphans.length > 0) {
+    anyShown = true;
+    html += '<div class="col-group"><h3>Other</h3><div class="col-grid">';
+    for (var oi = 0; oi < orphans.length; oi++) {
+      var of = orphans[oi];
+      var oc = selSet[of];
+      html += '<label class="col-chip' + (oc ? ' selected' : '') + '">'
+        + '<input type="checkbox"' + (oc ? ' checked' : '') + ' onchange="toggleField(\'' + esc(of) + '\', this.checked)">'
+        + '<span><strong>' + esc(of) + '</strong></span>'
+        + '</label>';
+    }
+    html += '</div></div>';
+  }
+
+  if (!anyShown) {
+    html = '<div class="empty-note">No fields match "' + esc(q) + '".</div>';
+  }
+  container.innerHTML = html;
+}
+
+function matchesQuery(field, q) {
+  if (field.toLowerCase().indexOf(q) !== -1) return true;
+  var label = labelFor(field).toLowerCase();
+  return label.indexOf(q) !== -1;
+}
+
+function toggleField(field, checked) {
+  var sel = selected[currentGame];
+  var idx = sel.indexOf(field);
+  if (checked && idx === -1) sel.push(field);
+  else if (!checked && idx !== -1) sel.splice(idx, 1);
+  renderSelected();
+  renderFields();
+}
+
+function selectAll() {
+  selected[currentGame] = availableFields(currentGame).slice();
+  renderSelected();
+  renderFields();
+}
+function selectNone() {
+  selected[currentGame] = [];
+  renderSelected();
+  renderFields();
+}
+function resetDefaults() {
+  selected[currentGame] = DEFAULT_COLUMNS.slice();
+  renderSelected();
+  renderFields();
+}
+
+function saveColumns() {
+  saveColumnsFor('8', selected['8']);
+  saveColumnsFor('9', selected['9']);
+  alert('Saved. Refresh the main page to see the change.');
+}
+
+function labelFor(col) { return FIELD_LABELS[col] || col; }
+function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+// ────────────────────────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────────────────────────
+(function init() {
+  selected['8'] = loadColumns('8');
+  selected['9'] = loadColumns('9');
+  renderSelected();
+  renderFields();
+})();
+</script>
+</body>
+</html>
