@@ -199,6 +199,48 @@
     .btn-primary:hover { background: var(--primary-dark); }
     .btn-outline { background: #fff; color: #000; border: 1px solid var(--border); }
     .btn-outline:hover { background: #faf8f3; }
+    .btn-sm { min-height: 36px; padding: 6px 14px; font-size: 0.8rem; }
+
+    /* Loaded-file row (shown above tabs once a file is loaded) */
+    .loaded-file-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      background: #faf8f3;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: calc(var(--spacing) * 3);
+    }
+    .loaded-file-name {
+      flex: 1;
+      min-width: 150px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .loaded-file-name strong { color: var(--text); }
+
+    /* Toggle switch (ignore name diffs) */
+    .toggle-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      min-height: 32px;
+    }
+    .toggle-switch input { margin: 0; accent-color: var(--primary); }
+    .toggle-switch.on {
+      background: #fff3cd;
+      border-color: #b58c00;
+      color: #5c4600;
+    }
 
     /* Compare view */
     .compare-header {
@@ -369,6 +411,10 @@
 
   <!-- ═══ Data view ═══ -->
   <div class="card hidden" id="viewCard">
+    <div class="loaded-file-row">
+      <div class="loaded-file-name" id="loadedFileName"></div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="uploadNewFile()">&#128194; Upload new file</button>
+    </div>
     <div class="tabs" id="gameTabs">
       <button type="button" class="tab active" data-tab="8" onclick="switchTab('8')">8-Ball</button>
       <button type="button" class="tab" data-tab="9" onclick="switchTab('9')">9-Ball</button>
@@ -397,6 +443,10 @@
       <div class="compare-header">
         <h3>Compare Form Signups (8-Ball Singles) &harr; TMS</h3>
         <button type="button" class="btn btn-primary" id="loadSignupsBtn" onclick="loadAndCompare()">&#128260; Load Signups</button>
+        <label class="toggle-switch" id="ignoreNameToggleLabel">
+          <input type="checkbox" id="ignoreNameToggle" onchange="toggleIgnoreNameDiffs()">
+          Ignore name differences
+        </label>
         <button type="button" class="btn btn-outline" onclick="exportMatchedCsv()">&#11015; Export Matched CSV</button>
         <button type="button" class="btn btn-outline" onclick="exportUnmatchedCsv()">&#11015; Export Unmatched CSV</button>
       </div>
@@ -458,6 +508,78 @@ var FIELD_LABELS = {
 var tables = { '8': null, '9': null };   // parsed Paradox objects
 var currentGame = '8';
 var currentSort = { col: null, dir: 'asc' };
+var loadedFilename = '';
+
+// Persistence keys
+var CACHE_KEY = 'tmsviewer.cache.tables.v1';
+var CACHE_FILENAME_KEY = 'tmsviewer.cache.filename.v1';
+var IGNORE_NAMES_KEY = 'tmsviewer.ignoreNameDiffs';
+
+// ────────────────────────────────────────────────────────────────────
+// Cache: persist the parsed tables to localStorage so a browser reload
+// restores the loaded zip without forcing the user to re-upload.
+// ────────────────────────────────────────────────────────────────────
+function saveTablesToCache(filename) {
+  try {
+    // Strip out non-serializable stuff if any (JS Dates etc.) — tables
+    // are plain objects from the parser so JSON round-trips cleanly.
+    var payload = {
+      '8': tables['8'] ? stripForCache(tables['8']) : null,
+      '9': tables['9'] ? stripForCache(tables['9']) : null
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    if (filename) {
+      localStorage.setItem(CACHE_FILENAME_KEY, filename);
+      loadedFilename = filename;
+    }
+  } catch (e) {
+    console.warn('Could not cache parsed tables:', e);
+  }
+}
+
+function stripForCache(tbl) {
+  // Keep only what we need on reload: field metadata + records.
+  return {
+    tableName: tbl.tableName,
+    fieldNames: tbl.fieldNames,
+    fieldTypes: tbl.fieldTypes,
+    fieldSizes: tbl.fieldSizes,
+    records: tbl.records,
+    recordSize: tbl.recordSize,
+    headerSize: tbl.headerSize,
+    numFields: tbl.numFields
+  };
+}
+
+function restoreTablesFromCache() {
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    var payload = JSON.parse(raw);
+    if (!payload || (!payload['8'] && !payload['9'])) return false;
+    tables['8'] = payload['8'] || null;
+    tables['9'] = payload['9'] || null;
+    loadedFilename = localStorage.getItem(CACHE_FILENAME_KEY) || '';
+    // Re-hydrate sessionStorage field lists for admin.html
+    if (tables['8']) {
+      try { sessionStorage.setItem('tmsviewer.fields.8', JSON.stringify(tables['8'].fieldNames)); } catch (e) {}
+    }
+    if (tables['9']) {
+      try { sessionStorage.setItem('tmsviewer.fields.9', JSON.stringify(tables['9'].fieldNames)); } catch (e) {}
+    }
+    return true;
+  } catch (e) {
+    console.warn('Could not restore cached tables:', e);
+    return false;
+  }
+}
+
+function clearTablesCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_FILENAME_KEY);
+  } catch (e) {}
+}
 
 // ────────────────────────────────────────────────────────────────────
 // Column preferences (stored in localStorage, shared with admin.html)
@@ -516,6 +638,34 @@ function clearStatus() {
   });
 })();
 
+// ────────────────────────────────────────────────────────────────────
+// Init — if we have a cached parse in localStorage, restore it so the
+// user doesn't have to re-upload after a browser reload.
+// ────────────────────────────────────────────────────────────────────
+(function init() {
+  // Apply the saved "ignore name differences" checkbox state
+  try {
+    var cb = document.getElementById('ignoreNameToggle');
+    if (cb) {
+      cb.checked = ignoreNameDiffs;
+      document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
+    }
+  } catch (e) {}
+
+  if (restoreTablesFromCache()) {
+    // Rehydrate the tab visibility based on what was actually cached
+    var tab8 = document.querySelector('[data-tab="8"]');
+    var tab9 = document.querySelector('[data-tab="9"]');
+    if (tab8) tab8.style.display = tables['8'] ? '' : 'none';
+    if (tab9) tab9.style.display = tables['9'] ? '' : 'none';
+    if (!tables[currentGame]) currentGame = tables['8'] ? '8' : '9';
+    setActiveTab(currentGame);
+    showLoadedView(loadedFilename);
+    renderTable();
+    setStatus('ok', 'Restored ' + (loadedFilename || 'previously loaded file') + ' from cache. Click "Upload new file" to replace it.');
+  }
+})();
+
 async function handleFile(file) {
   clearStatus();
   if (!file) return;
@@ -565,8 +715,11 @@ async function handleFile(file) {
     if (!tables[currentGame]) currentGame = tables['8'] ? '8' : '9';
     setActiveTab(currentGame);
 
-    document.getElementById('viewCard').classList.remove('hidden');
-    document.getElementById('dropCard').classList.add('hidden');
+    // Persist to localStorage so a browser reload doesn't force re-upload.
+    saveTablesToCache(file.name);
+
+    showLoadedView(file.name);
+    renderTable();
 
     var msg = 'Loaded ' + file.name + ' — ';
     if (tables['8']) msg += tables['8'].records.length + ' 8-ball ';
@@ -574,12 +727,37 @@ async function handleFile(file) {
     if (tables['9']) msg += tables['9'].records.length + ' 9-ball ';
     msg += 'players.';
     setStatus('ok', msg);
-
-    renderTable();
   } catch (e) {
     console.error(e);
     setStatus('err', 'Could not load zip: ' + (e && e.message ? e.message : String(e)));
   }
+}
+
+// Show the loaded-file row + data view, hide the drop zone.
+function showLoadedView(filename) {
+  var nameEl = document.getElementById('loadedFileName');
+  if (nameEl) {
+    var label = filename || 'Loaded from cache';
+    nameEl.innerHTML = 'Currently viewing: <strong>' + esc(label) + '</strong>';
+  }
+  document.getElementById('viewCard').classList.remove('hidden');
+  document.getElementById('dropCard').classList.add('hidden');
+}
+
+// User clicked "Upload new file" — clear cache and return to drop zone.
+function uploadNewFile() {
+  if (!confirm('Clear the currently-loaded file and upload a new one?')) return;
+  clearTablesCache();
+  tables = { '8': null, '9': null };
+  loadedFilename = '';
+  try {
+    sessionStorage.removeItem('tmsviewer.fields.8');
+    sessionStorage.removeItem('tmsviewer.fields.9');
+  } catch (e) {}
+  document.getElementById('viewCard').classList.add('hidden');
+  document.getElementById('dropCard').classList.remove('hidden');
+  document.getElementById('fileInput').value = '';
+  clearStatus();
 }
 
 function findZipEntry(zip, names, regex) {
@@ -790,6 +968,21 @@ var unmatchedFilter = 'all'; // 'all' | 'pending' | 'added'
 // Filter state for the matched table
 var matchedFilter = 'all'; // 'all' | 'flagged' | 'clean'
 
+// User preference: ignore name-only differences when deciding what to flag.
+// Loaded from localStorage so it persists across sessions.
+var ignoreNameDiffs = false;
+try {
+  ignoreNameDiffs = localStorage.getItem(IGNORE_NAMES_KEY) === '1';
+} catch (e) {}
+
+function toggleIgnoreNameDiffs() {
+  var cb = document.getElementById('ignoreNameToggle');
+  ignoreNameDiffs = cb.checked;
+  try { localStorage.setItem(IGNORE_NAMES_KEY, ignoreNameDiffs ? '1' : '0'); } catch (e) {}
+  document.getElementById('ignoreNameToggleLabel').classList.toggle('on', ignoreNameDiffs);
+  renderCompareResults();
+}
+
 // Compute the flags for a matched row (kept centralized so the filter
 // and the render code always agree).
 function matchFlags(row) {
@@ -808,7 +1001,10 @@ function matchFlags(row) {
 }
 function isFlagged(row) {
   var f = matchFlags(row);
-  return f.apaMismatch || f.nameMismatch || f.skillMismatch || f.matchedByName;
+  if (f.apaMismatch || f.skillMismatch || f.matchedByName) return true;
+  // Only count name mismatches when the user hasn't opted to ignore them.
+  if (!ignoreNameDiffs && f.nameMismatch) return true;
+  return false;
 }
 
 function setMatchedFilter(key) {
@@ -1069,11 +1265,12 @@ function renderCompareResults() {
         var tmsSL = tmsSkillLevel(row.tms);
         var byNameBadge = f.matchedByName ? ' <span class="match-by-name">by name</span>' : '';
 
+        var showNameMismatch = f.nameMismatch && !ignoreNameDiffs;
         html += '<tr>'
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
-          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
-          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
+          + '<td class="' + (showNameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
+          + '<td class="' + (showNameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
           + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(row.form.skill) + '</td>'
           + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(tmsSL) + '</td>'
           + '</tr>';
@@ -1302,14 +1499,10 @@ function downloadCompareCsv(filename, csv) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Reset
+// Reset (Reset button in the data view) — equivalent to Upload new file
 // ════════════════════════════════════════════════════════════════════
 function resetData() {
-  tables = { '8': null, '9': null };
-  document.getElementById('viewCard').classList.add('hidden');
-  document.getElementById('dropCard').classList.remove('hidden');
-  document.getElementById('fileInput').value = '';
-  clearStatus();
+  uploadNewFile();
 }
 </script>
 </body>
