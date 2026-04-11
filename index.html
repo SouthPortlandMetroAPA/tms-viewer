@@ -1854,13 +1854,15 @@ function renderCompareResults() {
         var tmsNameStr = tmsName(row.tms);
         var tmsSL = tmsSkillLevel(row.tms);
         var byNameBadge = f.matchedByName ? ' <span class="match-by-name">by name</span>' : '';
-        var showNameMismatch = f.nameMismatch && !ignoreNameDiffs;
+        // Name mismatches are ALWAYS highlighted in orange so the user can
+        // eyeball them. The ignore-name-diffs toggle only affects whether
+        // they count toward the "Needs review" filter in isFlagged().
         var teamCell = def.hasTeam ? '<td>' + esc(row.form.teamName || '') + '</td>' : '';
         html += '<tr>' + teamCell
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
-          + '<td class="' + (showNameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
-          + '<td class="' + (showNameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
+          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
+          + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
           + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(row.form.skill) + '</td>'
           + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(tmsSL) + '</td>'
           + '</tr>';
