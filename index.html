@@ -1731,6 +1731,21 @@ function normalizeNameSorted(raw) {
   return parts.sort().join(' ');
 }
 
+// Normalize a team name for fuzzy matching. More aggressive than player
+// names because team names have more free-text variation.
+function normalizeTeamName(raw) {
+  if (raw == null) return '';
+  return String(raw)
+    .toLowerCase()
+    // Strip common filler words that don't identify the team
+    .replace(/\bthe\b/g, ' ')
+    .replace(/\bteam\b/g, ' ')
+    // Strip non-alphanumeric (punctuation, apostrophes, etc.)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ─── TMS helpers ────────────────────────────────────────────────────
 function tmsName(rec) {
   var first = (rec.FIRST || '').trim();
@@ -1818,6 +1833,208 @@ function computeTmsSkill(rec) {
 
 function tmsSkillLevel(rec) {
   return computeTmsSkill(rec).value;
+}
+
+// ─── Team comparison (team events only) ─────────────────────────────
+// Builds three buckets — inBoth, formOnly, tmsOnly — comparing the set
+// of teams represented in the form signups with the set of teams in
+// TTeam.db (via TNUM1..7 on Tscore player records).
+//
+// Matching strategy per form team (in order):
+//   1. Fuzzy name match (normalizeTeamName equality) against a TMS team
+//   2. Player-overlap fallback: if any TMS team has >=50% of the form
+//      team's players in its roster (matched by APA# or name), treat
+//      them as the same team even if the names disagree.
+// ────────────────────────────────────────────────────────────────────
+function buildTeamComparison(formTeamMap, tmsTeamsMap, tbl) {
+  // Build TMS-side teams: each team number → { number, name, players[] }
+  var tmsTeams = {};
+  var tmsKeys = Object.keys(tmsTeamsMap || {});
+  for (var i = 0; i < tmsKeys.length; i++) {
+    var num = String(tmsKeys[i]).trim();
+    tmsTeams[num] = {
+      number: num,
+      name: tmsTeamsMap[num] || '',
+      nameNorm: normalizeTeamName(tmsTeamsMap[num] || ''),
+      players: []
+    };
+  }
+  // Populate each TMS team's roster from player records via TNUM1..7
+  if (tbl && tbl.records) {
+    for (var r = 0; r < tbl.records.length; r++) {
+      var rec = tbl.records[r];
+      for (var t = 1; t <= 7; t++) {
+        var tnum = rec['TNUM' + t];
+        if (tnum == null || tnum === '' || tnum === '0') continue;
+        var key = String(tnum).trim();
+        if (!tmsTeams[key]) {
+          // Team number referenced by a player but not in TTeam.db —
+          // create a placeholder so the player isn't orphaned.
+          tmsTeams[key] = { number: key, name: '(no TTeam entry)', nameNorm: '', players: [] };
+        }
+        // Avoid adding the same player twice if they're on the same team
+        // twice via different slots
+        var apa = normalizeApa(rec.APACARD);
+        var already = false;
+        for (var q = 0; q < tmsTeams[key].players.length; q++) {
+          if (normalizeApa(tmsTeams[key].players[q].APACARD) === apa) { already = true; break; }
+        }
+        if (!already) tmsTeams[key].players.push(rec);
+      }
+    }
+  }
+
+  // Form-side teams map is passed in as { teamName: [signups] }
+  var formTeams = [];
+  var formKeys = Object.keys(formTeamMap || {});
+  for (var fi = 0; fi < formKeys.length; fi++) {
+    var fname = formKeys[fi];
+    formTeams.push({
+      name: fname,
+      nameNorm: normalizeTeamName(fname),
+      players: formTeamMap[fname]
+    });
+  }
+
+  // Match form teams to TMS teams
+  var inBoth = [];
+  var formOnly = [];
+  var usedTmsKeys = {};
+
+  for (var f = 0; f < formTeams.length; f++) {
+    var ft = formTeams[f];
+    var matchedTmsKey = null;
+    var matchReason = '';
+
+    // Step 1: fuzzy name match
+    if (ft.nameNorm) {
+      for (var tk = 0; tk < tmsKeys.length; tk++) {
+        var tnk = tmsKeys[tk];
+        if (usedTmsKeys[tnk]) continue;
+        if (tmsTeams[tnk].nameNorm && tmsTeams[tnk].nameNorm === ft.nameNorm) {
+          matchedTmsKey = tnk;
+          matchReason = 'name';
+          break;
+        }
+      }
+    }
+
+    // Step 2: player-overlap fallback
+    if (!matchedTmsKey) {
+      var formPlayerKeys = {};
+      for (var pi = 0; pi < ft.players.length; pi++) {
+        var pk = ft.players[pi].apaNorm || ('name:' + ft.players[pi].nameNorm);
+        if (pk) formPlayerKeys[pk] = true;
+      }
+      var formPlayerCount = Object.keys(formPlayerKeys).length;
+      if (formPlayerCount > 0) {
+        var bestKey = null, bestOverlap = 0;
+        for (var tk2 = 0; tk2 < tmsKeys.length; tk2++) {
+          var tnk2 = tmsKeys[tk2];
+          if (usedTmsKeys[tnk2]) continue;
+          var overlap = 0;
+          var roster = tmsTeams[tnk2].players;
+          for (var rp = 0; rp < roster.length; rp++) {
+            var pk2 = normalizeApa(roster[rp].APACARD) || ('name:' + normalizeNameSorted(tmsName(roster[rp])));
+            if (formPlayerKeys[pk2]) overlap++;
+          }
+          if (overlap > bestOverlap) { bestOverlap = overlap; bestKey = tnk2; }
+        }
+        // Require at least 50% of the form roster to overlap
+        if (bestKey && (bestOverlap / formPlayerCount) >= 0.5) {
+          matchedTmsKey = bestKey;
+          matchReason = 'players';
+        }
+      }
+    }
+
+    if (matchedTmsKey) {
+      usedTmsKeys[matchedTmsKey] = true;
+      var tmsTeam = tmsTeams[matchedTmsKey];
+      inBoth.push({
+        formName: ft.name,
+        tmsName: tmsTeam.name,
+        tmsNumber: tmsTeam.number,
+        matchReason: matchReason,
+        nameMismatch: ft.nameNorm !== tmsTeam.nameNorm,
+        roster: compareRoster(ft.players, tmsTeam.players)
+      });
+    } else {
+      formOnly.push({
+        formName: ft.name,
+        players: ft.players
+      });
+    }
+  }
+
+  // TMS teams that weren't matched to any form team
+  var tmsOnly = [];
+  for (var tk3 = 0; tk3 < tmsKeys.length; tk3++) {
+    var tnk3 = tmsKeys[tk3];
+    if (usedTmsKeys[tnk3]) continue;
+    if (tmsTeams[tnk3].players.length === 0) continue; // skip TTeam rows w/ no roster at all
+    tmsOnly.push({
+      tmsName: tmsTeams[tnk3].name,
+      tmsNumber: tmsTeams[tnk3].number,
+      players: tmsTeams[tnk3].players
+    });
+  }
+
+  return { inBoth: inBoth, formOnly: formOnly, tmsOnly: tmsOnly };
+}
+
+// Compare a form roster against a TMS roster player-by-player.
+// Returns a unified list, one entry per distinct player, marked:
+//   'both'     — present in both, with skill info and skill check
+//   'formOnly' — in form but not TMS roster
+//   'tmsOnly'  — in TMS roster but not form
+function compareRoster(formPlayers, tmsPlayers) {
+  var out = [];
+  var tmsUsed = {};
+
+  for (var f = 0; f < formPlayers.length; f++) {
+    var fp = formPlayers[f];
+    var matchIdx = -1;
+    for (var t = 0; t < tmsPlayers.length; t++) {
+      if (tmsUsed[t]) continue;
+      var tp = tmsPlayers[t];
+      var apaMatch = fp.apaNorm && normalizeApa(tp.APACARD) === fp.apaNorm;
+      var nameMatch = fp.nameNorm && normalizeNameSorted(tmsName(tp)) === fp.nameNorm;
+      if (apaMatch || nameMatch) { matchIdx = t; break; }
+    }
+    if (matchIdx >= 0) {
+      tmsUsed[matchIdx] = true;
+      var tms = tmsPlayers[matchIdx];
+      var tmsSL = tmsSkillLevel(tms);
+      var skillMismatch = !!(fp.skill && tmsSL && String(fp.skill).trim() !== String(tmsSL).trim());
+      out.push({
+        status: 'both',
+        formPlayer: fp,
+        tmsPlayer: tms,
+        tmsName: tmsName(tms),
+        tmsApa: tms.APACARD || '',
+        tmsSkill: tmsSL,
+        skillMismatch: skillMismatch
+      });
+    } else {
+      out.push({ status: 'formOnly', formPlayer: fp });
+    }
+  }
+
+  // Pick up TMS roster entries that didn't get matched to any form player
+  for (var t2 = 0; t2 < tmsPlayers.length; t2++) {
+    if (tmsUsed[t2]) continue;
+    var tp2 = tmsPlayers[t2];
+    out.push({
+      status: 'tmsOnly',
+      tmsPlayer: tp2,
+      tmsName: tmsName(tp2),
+      tmsApa: tp2.APACARD || '',
+      tmsSkill: tmsSkillLevel(tp2)
+    });
+  }
+
+  return out;
 }
 
 // ─── Extract signups from a CSV row per event config ────────────────
@@ -1991,7 +2208,20 @@ async function loadAndCompare() {
       });
     }
 
-    s.lastCompare = { matched: matched, unmatched: unmatched, tmsOnly: tmsOnly, teams: teams };
+    // For team events, also build the team-level comparison (In both /
+    // Form only / TMS only) using TTeam.db + TNUM1..7 on player records.
+    var teamComparison = null;
+    if (def.hasTeam) {
+      teamComparison = buildTeamComparison(teamMap, s.teamsMap || {}, tbl);
+    }
+
+    s.lastCompare = {
+      matched: matched,
+      unmatched: unmatched,
+      tmsOnly: tmsOnly,
+      teams: teams,
+      teamComparison: teamComparison
+    };
     saveState();
 
     var summary = 'Loaded ' + signups.length + ' ' + def.label.toLowerCase() + ' signup(s): '
@@ -2112,53 +2342,24 @@ function renderCompareResults() {
   var s = S();
   var def = getEventDef(currentEvent);
   var results = document.getElementById('compareResults');
-  var lc = s.lastCompare || { matched: [], unmatched: [], tmsOnly: [], teams: [] };
+  var lc = s.lastCompare || { matched: [], unmatched: [], tmsOnly: [], teams: [], teamComparison: null };
   var m = lc.matched || [];
   var u = lc.unmatched || [];
   var tmsOnly = lc.tmsOnly || [];
-  var teams = lc.teams || [];
+  var tc = lc.teamComparison;
 
-  if (m.length === 0 && u.length === 0 && tmsOnly.length === 0 && teams.length === 0) {
+  if (m.length === 0 && u.length === 0 && tmsOnly.length === 0 && !tc) {
     results.innerHTML = '<div style="padding:12px;color:var(--muted);font-style:italic">Click <strong>Load Signups</strong> above to pull the sheet and compare.</div>';
     return;
   }
 
   var html = '';
 
-  // ── Team cards (team events only) ────────────────────────────────
-  if (def.hasTeam && teams.length > 0) {
-    html += '<div class="compare-section-title">Teams'
-         + '<span class="count">' + teams.length + '</span></div>';
-    html += '<div class="team-cards">';
-    for (var ti = 0; ti < teams.length; ti++) {
-      var team = teams[ti];
-      var missing = 0, flagged = 0, ok = 0;
-      for (var tp = 0; tp < team.players.length; tp++) {
-        var p = team.players[tp];
-        if (!p.matched) missing++;
-        else if (p.flagged) flagged++;
-        else ok++;
-      }
-      var dotClass = missing > 0 ? 'err' : (flagged > 0 ? 'warn' : 'ok');
-      html += '<div class="team-card"><h4><span class="team-dot ' + dotClass + '"></span>' + esc(team.name || '(no team name)') + '</h4><ul>';
-      for (var ps = 0; ps < team.players.length; ps++) {
-        var pl = team.players[ps];
-        var sigp = pl.sig;
-        var statusCls = 'err', statusTxt = 'Not in TMS';
-        if (pl.matched) {
-          statusCls = pl.flagged ? 'warn' : 'ok';
-          statusTxt = pl.flagged ? 'Flagged' : 'OK';
-        }
-        html += '<li>'
-             + '<span class="p-status ' + statusCls + '">' + statusTxt + '</span>'
-             + '<span class="p-name">' + esc(sigp.name) + '</span>'
-             + '<span class="p-apa">#' + esc(sigp.apa) + '</span>'
-             + '<span class="p-sl">SL' + esc(sigp.skill) + '</span>'
-             + '</li>';
-      }
-      html += '</ul></div>';
-    }
-    html += '</div>';
+  // ══ TEAM EVENTS: team-level comparison is the headline ════════════
+  if (def.hasTeam && tc) {
+    html += renderTeamComparison(tc);
+    // Per-player tables below are secondary — wrap in a collapsed details
+    html += '<details style="margin-top:24px"><summary style="cursor:pointer;font-size:0.85rem;color:var(--muted);font-weight:600;padding:8px 0">Show per-player tables (matched / unmatched / TMS-only)</summary><div style="margin-top:8px">';
   }
 
   // ── Matched list ─────────────────────────────────────────────────
@@ -2249,70 +2450,27 @@ function renderCompareResults() {
   }
 
   // ── Unmatched list (in form but not in TMS) ─────────────────────
-  var justAddedApaSet = {};
-  var justAddedNameSet = {};
-  s.justAddedApa.forEach(function(x) { justAddedApaSet[x] = true; });
-  s.justAddedName.forEach(function(x) { justAddedNameSet[x] = true; });
-
-  var decorated = u.map(function(un) {
-    var added = (un.apaNorm && justAddedApaSet[un.apaNorm])
-             || (un.nameNorm && justAddedNameSet[un.nameNorm]);
-    return { un: un, added: added };
-  });
-  var pendingCount = decorated.filter(function(d) { return !d.added; }).length;
-  var addedCount = decorated.filter(function(d) { return d.added; }).length;
-
-  html += '<div class="compare-section-title">In form but not in TMS &mdash; action required'
-       + '<span class="count ' + (pendingCount > 0 ? 'err' : '') + '">' + pendingCount + ' pending</span></div>';
+  html += '<div class="compare-section-title">In form but not in TMS'
+       + '<span class="count ' + (u.length > 0 ? 'err' : '') + '">' + u.length + '</span></div>';
 
   if (u.length === 0) {
     html += '<div style="padding:12px;color:var(--success);font-weight:600">\u2713 Every form signup was matched to a TMS player.</div>';
   } else {
-    html += '<div class="just-added-box">'
-         + '<label>Mark players as "just added" to TMS</label>'
-         + '<textarea id="justAddedInput" placeholder="Paste one per line, tab between name and APA #:\nJohn Doe\t98409194\nJane Smith\t97222393"></textarea>'
-         + '<div class="hint">Matched against the unmatched list by APA # first, then name. Marks persist in this browser.</div>'
-         + '<div class="row">'
-         + '<button type="button" class="btn btn-primary" onclick="applyJustAdded()">Apply</button>'
-         + '<button type="button" class="btn btn-outline" onclick="clearJustAdded()">Clear all marks</button>'
-         + '<span style="color:var(--muted);font-size:0.8rem">' + pendingCount + ' pending &middot; ' + addedCount + ' added</span>'
-         + '</div></div>';
-
-    html += '<div class="filter-pills">'
-         + unmatchedPillHtml('all',     'All (' + u.length + ')')
-         + unmatchedPillHtml('pending', 'Not added yet (' + pendingCount + ')')
-         + unmatchedPillHtml('added',   'Added (' + addedCount + ')')
-         + '</div>';
-
-    var uf = s.unmatchedFilter;
-    var visible = decorated.filter(function(d) {
-      if (uf === 'pending') return !d.added;
-      if (uf === 'added')   return d.added;
-      return true;
-    });
-
-    if (visible.length === 0) {
-      html += '<div style="padding:12px;color:var(--muted);font-style:italic">No rows in this filter.</div>';
-    } else {
-      var teamColU = def.hasTeam ? '<th>Team</th>' : '';
-      html += '<div class="table-wrap"><table class="table"><thead><tr>'
-           + '<th>Added?</th>' + teamColU
-           + '<th>Form APA #</th><th>Form Name</th><th>Form SL</th>'
-           + '</tr></thead><tbody>';
-      for (var vj = 0; vj < visible.length; vj++) {
-        var un2 = visible[vj].un;
-        var added = visible[vj].added;
-        var teamCell2 = def.hasTeam ? '<td>' + esc(un2.teamName || '') + '</td>' : '';
-        html += '<tr' + (added ? ' class="just-added"' : '') + '>'
-          + '<td>' + (added ? '<span class="badge-added">\u2713 Added</span>' : '') + '</td>'
-          + teamCell2
-          + '<td>' + esc(un2.apa) + '</td>'
-          + '<td>' + esc(un2.name) + '</td>'
-          + '<td class="num">' + esc(un2.skill) + '</td>'
-          + '</tr>';
-      }
-      html += '</tbody></table></div>';
+    var teamColU = def.hasTeam ? '<th>Team</th>' : '';
+    html += '<div class="table-wrap"><table class="table"><thead><tr>'
+         + teamColU
+         + '<th>Form APA #</th><th>Form Name</th><th>Form SL</th>'
+         + '</tr></thead><tbody>';
+    for (var vj = 0; vj < u.length; vj++) {
+      var un2 = u[vj];
+      var teamCell2 = def.hasTeam ? '<td>' + esc(un2.teamName || '') + '</td>' : '';
+      html += '<tr>' + teamCell2
+        + '<td>' + esc(un2.apa) + '</td>'
+        + '<td>' + esc(un2.name) + '</td>'
+        + '<td class="num">' + esc(un2.skill) + '</td>'
+        + '</tr>';
     }
+    html += '</tbody></table></div>';
   }
 
   // ── In TMS but not in form ───────────────────────────────────────
@@ -2337,6 +2495,11 @@ function renderCompareResults() {
     html += '</tbody></table></div>';
   }
 
+  // Close the collapsible details wrapper for team events
+  if (def.hasTeam && tc) {
+    html += '</div></details>';
+  }
+
   results.innerHTML = html;
 }
 
@@ -2345,93 +2508,164 @@ function matchedPillHtml(key, label) {
   return '<button type="button" class="filter-pill' + active + '" onclick="setMatchedFilter(\'' + key + '\')">'
        + esc(label) + '</button>';
 }
-function unmatchedPillHtml(key, label) {
-  var active = S().unmatchedFilter === key ? ' active' : '';
-  return '<button type="button" class="filter-pill' + active + '" onclick="setUnmatchedFilter(\'' + key + '\')">'
-       + esc(label) + '</button>';
-}
 
-// ─── "Just added" paste parsing (per-event) ─────────────────────────
-function applyJustAdded() {
-  var s = S();
-  var ta = document.getElementById('justAddedInput');
-  if (!ta) return;
-  var text = ta.value;
-  if (!text.trim()) { alert('Paste some names and APA numbers first.'); return; }
+// ════════════════════════════════════════════════════════════════════
+// Render team-level comparison (team events only)
+// ════════════════════════════════════════════════════════════════════
+// Three buckets: In both / Form only / TMS only. Each rendered as a
+// card grid with inline roster detail.
+function renderTeamComparison(tc) {
+  var inBoth = tc.inBoth || [];
+  var formOnly = tc.formOnly || [];
+  var tmsOnly = tc.tmsOnly || [];
 
-  var lines = text.split(/\r?\n/);
-  var matchedCount = 0;
-  var skipped = [];
-
-  var unmatchedByApa = {};
-  var unmatchedByName = {};
-  for (var i = 0; i < s.lastCompare.unmatched.length; i++) {
-    var un = s.lastCompare.unmatched[i];
-    if (un.apaNorm) unmatchedByApa[un.apaNorm] = un;
-    if (un.nameNorm) unmatchedByName[un.nameNorm] = un;
-  }
-
-  var apaAdded = s.justAddedApa.slice();
-  var nameAdded = s.justAddedName.slice();
-  var addApa = function(v) { if (v && apaAdded.indexOf(v) === -1) apaAdded.push(v); };
-  var addName = function(v) { if (v && nameAdded.indexOf(v) === -1) nameAdded.push(v); };
-
-  for (var l = 0; l < lines.length; l++) {
-    var line = lines[l];
-    if (!line.trim()) continue;
-    var name, apaRaw;
-    var tabIdx = line.indexOf('\t');
-    if (tabIdx !== -1) {
-      name = line.slice(0, tabIdx).trim();
-      apaRaw = line.slice(tabIdx + 1).trim();
-    } else {
-      var mm = line.match(/^(.*?)\s+(\S+)\s*$/);
-      if (mm) { name = mm[1].trim(); apaRaw = mm[2].trim(); }
-      else { name = line.trim(); apaRaw = ''; }
-    }
-    var apaNorm = normalizeApa(apaRaw);
-    var nameNorm = normalizeNameSorted(name);
-
-    var matchedEntry = null;
-    if (apaNorm && unmatchedByApa[apaNorm]) matchedEntry = unmatchedByApa[apaNorm];
-    else if (nameNorm && unmatchedByName[nameNorm]) matchedEntry = unmatchedByName[nameNorm];
-
-    if (matchedEntry) {
-      addApa(matchedEntry.apaNorm);
-      addName(matchedEntry.nameNorm);
-      matchedCount++;
-    } else {
-      addApa(apaNorm);
-      addName(nameNorm);
-      skipped.push(line.trim());
+  // Count roster issues among the inBoth teams
+  var rosterIssueCount = 0;
+  for (var ib = 0; ib < inBoth.length; ib++) {
+    for (var ri = 0; ri < inBoth[ib].roster.length; ri++) {
+      var entry = inBoth[ib].roster[ri];
+      if (entry.status !== 'both' || entry.skillMismatch) { rosterIssueCount++; break; }
     }
   }
 
-  s.justAddedApa = apaAdded;
-  s.justAddedName = nameAdded;
-  saveState();
-  ta.value = '';
-  renderCompareResults();
+  var html = '';
 
-  var msg = 'Marked ' + matchedCount + ' as added.';
-  if (skipped.length > 0) {
-    msg += ' ' + skipped.length + ' didn\'t match the unmatched list but were still saved: '
-         + skipped.slice(0, 3).join(' / ')
-         + (skipped.length > 3 ? ' \u2026' : '');
+  // Summary bar
+  html += '<div class="compare-section-title">Team comparison'
+       + '<span class="count">' + (inBoth.length + formOnly.length + tmsOnly.length) + ' total</span>'
+       + '</div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:0.85rem">'
+       + '<div style="background:#d4edda;color:#155724;padding:6px 12px;border-radius:999px;font-weight:600">'
+       + '\u2713 In both: ' + inBoth.length + '</div>'
+       + '<div style="background:#fff3cd;color:#856404;padding:6px 12px;border-radius:999px;font-weight:600">'
+       + '\u26A0 Form only: ' + formOnly.length + '</div>'
+       + '<div style="background:#f8d7da;color:#721c24;padding:6px 12px;border-radius:999px;font-weight:600">'
+       + '\u2717 TMS only: ' + tmsOnly.length + '</div>'
+       + (rosterIssueCount > 0
+           ? '<div style="background:#ffe8d4;color:#5c4600;padding:6px 12px;border-radius:999px;font-weight:600">'
+             + 'Roster issues: ' + rosterIssueCount + '</div>'
+           : '')
+       + '</div>';
+
+  // ── In both ────────────────────────────────────────────────────
+  if (inBoth.length > 0) {
+    html += '<h3 style="font-size:0.9rem;color:#155724;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px dashed var(--border)">\u2713 In both (' + inBoth.length + ')</h3>';
+    html += '<div class="team-cards">';
+    for (var i = 0; i < inBoth.length; i++) {
+      var team = inBoth[i];
+
+      // Determine team card status
+      var anyIssue = team.nameMismatch;
+      for (var rj = 0; rj < team.roster.length; rj++) {
+        if (team.roster[rj].status !== 'both' || team.roster[rj].skillMismatch) { anyIssue = true; break; }
+      }
+      var dotClass = anyIssue ? 'warn' : 'ok';
+
+      html += '<div class="team-card">';
+      html += '<h4><span class="team-dot ' + dotClass + '"></span>'
+           + esc(team.formName)
+           + (team.tmsNumber ? ' <span style="color:var(--muted);font-weight:400;font-size:0.75rem">#' + esc(team.tmsNumber) + '</span>' : '')
+           + '</h4>';
+      if (team.nameMismatch) {
+        html += '<div style="font-size:0.75rem;color:#856404;background:#fff3cd;padding:4px 8px;border-radius:4px;margin-bottom:6px">'
+             + 'Form says <strong>' + esc(team.formName) + '</strong>, TMS says <strong>' + esc(team.tmsName) + '</strong>'
+             + (team.matchReason === 'players' ? ' (matched by player overlap)' : '')
+             + '</div>';
+      }
+
+      // Roster comparison table
+      html += '<table class="table" style="font-size:0.75rem;margin:4px 0">'
+           + '<thead><tr>'
+           + '<th>Status</th><th>Form Player</th><th>TMS Player</th><th>Form SL</th><th>TMS SL</th>'
+           + '</tr></thead><tbody>';
+      for (var p = 0; p < team.roster.length; p++) {
+        var pe = team.roster[p];
+        if (pe.status === 'both') {
+          var skillCls = pe.skillMismatch ? 'mismatch num' : 'num';
+          html += '<tr>'
+               + '<td><span class="p-status ok">OK</span></td>'
+               + '<td>' + esc(pe.formPlayer.name) + ' <span class="p-apa">#' + esc(pe.formPlayer.apa) + '</span></td>'
+               + '<td>' + esc(pe.tmsName) + ' <span class="p-apa">#' + esc(pe.tmsApa) + '</span></td>'
+               + '<td class="' + skillCls + '">' + esc(pe.formPlayer.skill) + '</td>'
+               + '<td class="' + skillCls + '">' + esc(pe.tmsSkill) + '</td>'
+               + '</tr>';
+        } else if (pe.status === 'formOnly') {
+          html += '<tr>'
+               + '<td><span class="p-status err">Form only</span></td>'
+               + '<td>' + esc(pe.formPlayer.name) + ' <span class="p-apa">#' + esc(pe.formPlayer.apa) + '</span></td>'
+               + '<td class="null">\u2014 not on TMS roster</td>'
+               + '<td class="num">' + esc(pe.formPlayer.skill) + '</td>'
+               + '<td class="null">\u2014</td>'
+               + '</tr>';
+        } else { // tmsOnly
+          html += '<tr>'
+               + '<td><span class="p-status warn">TMS only</span></td>'
+               + '<td class="null">\u2014 not in form</td>'
+               + '<td>' + esc(pe.tmsName) + ' <span class="p-apa">#' + esc(pe.tmsApa) + '</span></td>'
+               + '<td class="null">\u2014</td>'
+               + '<td class="num">' + esc(pe.tmsSkill) + '</td>'
+               + '</tr>';
+        }
+      }
+      html += '</tbody></table>';
+      html += '</div>';
+    }
+    html += '</div>';
   }
-  var statusEl = document.getElementById('compareStatus');
-  statusEl.className = 'status-line shown ok';
-  statusEl.textContent = msg;
+
+  // ── Form only ──────────────────────────────────────────────────
+  if (formOnly.length > 0) {
+    html += '<h3 style="font-size:0.9rem;color:#856404;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px dashed var(--border)">\u26A0 Form only &mdash; no matching TMS team (' + formOnly.length + ')</h3>';
+    html += '<div class="team-cards">';
+    for (var fi = 0; fi < formOnly.length; fi++) {
+      var ft = formOnly[fi];
+      html += '<div class="team-card">'
+           + '<h4><span class="team-dot warn"></span>' + esc(ft.formName) + '</h4>'
+           + '<ul>';
+      for (var pi = 0; pi < ft.players.length; pi++) {
+        var pl = ft.players[pi];
+        html += '<li>'
+             + '<span class="p-name">' + esc(pl.name) + '</span>'
+             + '<span class="p-apa">#' + esc(pl.apa) + '</span>'
+             + '<span class="p-sl">SL' + esc(pl.skill) + '</span>'
+             + '</li>';
+      }
+      html += '</ul></div>';
+    }
+    html += '</div>';
+  }
+
+  // ── TMS only ───────────────────────────────────────────────────
+  if (tmsOnly.length > 0) {
+    html += '<h3 style="font-size:0.9rem;color:#721c24;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px dashed var(--border)">\u2717 TMS only &mdash; no matching form team (' + tmsOnly.length + ')</h3>';
+    html += '<div class="team-cards">';
+    for (var ti = 0; ti < tmsOnly.length; ti++) {
+      var tt = tmsOnly[ti];
+      html += '<div class="team-card">'
+           + '<h4><span class="team-dot err"></span>' + esc(tt.tmsName)
+           + ' <span style="color:var(--muted);font-weight:400;font-size:0.75rem">#' + esc(tt.tmsNumber) + '</span>'
+           + '</h4>'
+           + '<ul>';
+      for (var tpi = 0; tpi < tt.players.length; tpi++) {
+        var tpl = tt.players[tpi];
+        html += '<li>'
+             + '<span class="p-name">' + esc(tmsName(tpl)) + '</span>'
+             + '<span class="p-apa">#' + esc(tpl.APACARD || '') + '</span>'
+             + '<span class="p-sl">SL' + esc(tmsSkillLevel(tpl) || '?') + '</span>'
+             + '</li>';
+      }
+      html += '</ul></div>';
+    }
+    html += '</div>';
+  }
+
+  // For team events, also wrap the per-player tables below in a
+  // collapsible details element so the team view is primary.
+  return '<div>' + html + '</div>';
 }
 
-function clearJustAdded() {
-  if (!confirm('Clear every "just added" mark for this event?')) return;
-  var s = S();
-  s.justAddedApa = [];
-  s.justAddedName = [];
-  saveState();
-  renderCompareResults();
-}
+// Just-Added paste feature removed — team-level comparison is the new
+// way to track roster completeness.
 
 // ─── CSV export of compare results ──────────────────────────────────
 function exportMatchedCsv() {
