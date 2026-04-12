@@ -1187,6 +1187,24 @@ function findZipEntry(zip, names, regex) {
   } catch (e) {}
 
   restoreState();
+
+  // If the remembered current event has no data but a DIFFERENT event
+  // does, auto-switch to the first one with data. Prevents the "I
+  // refreshed and my data disappeared" confusion when the user was last
+  // viewing an empty event at reload time.
+  var current = state[currentEvent];
+  var currentHasData = current && current.detected && current.tables[current.detected];
+  if (!currentHasData) {
+    for (var i = 0; i < EVENTS.length; i++) {
+      var ek = EVENTS[i].key;
+      var s = state[ek];
+      if (s && s.detected && s.tables[s.detected]) {
+        currentEvent = ek;
+        break;
+      }
+    }
+  }
+
   renderEventNav();
 
   var cb = document.getElementById('ignoreNameToggle');
