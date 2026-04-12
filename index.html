@@ -629,12 +629,10 @@
       <!-- Teams section (populated when TTeam.db has rows) -->
       <div id="teamsSection" class="hidden" style="margin-top:24px">
         <div class="compare-section-title">Teams from TMS<span class="count" id="teamsCount"></span></div>
-        <div class="table-wrap">
-          <table class="table">
-            <thead><tr><th>Team #</th><th>Team Name</th></tr></thead>
-            <tbody id="teamsBody"></tbody>
-          </table>
+        <div class="hint" style="color:var(--muted);font-size:0.8rem;margin-bottom:8px">
+          Rosters built by joining TTeam.db team numbers to TNUM1..7 fields in the player table.
         </div>
+        <div id="teamsBody"></div>
       </div>
     </div>
 
@@ -1486,7 +1484,10 @@ function renderTable() {
 
   document.getElementById('rowCount').textContent = rows.length + ' / ' + tbl.records.length + ' rows';
 
-  // Teams table (shown only when TTeam.db had rows for this event)
+  // Teams section (shown only when TTeam.db had rows for this event).
+  // For each team in teamsMap, collect roster = players whose TNUM1..7
+  // includes that team number. All of this runs in the user's browser;
+  // no data is sent anywhere.
   var teamsSection = document.getElementById('teamsSection');
   var teamsBody = document.getElementById('teamsBody');
   var teamsCount = document.getElementById('teamsCount');
@@ -1496,13 +1497,49 @@ function renderTable() {
     teamsSection.classList.add('hidden');
   } else {
     teamsSection.classList.remove('hidden');
-    var teamHtml = '';
+
+    // Build: teamNum → [ player record, ... ]
+    var rosters = {};
+    for (var pi = 0; pi < tbl.records.length; pi++) {
+      var p = tbl.records[pi];
+      for (var tn = 1; tn <= 7; tn++) {
+        var tnum = p['TNUM' + tn];
+        if (tnum == null || tnum === '' || tnum === '0') continue;
+        var key = String(tnum).trim();
+        if (!key) continue;
+        if (!rosters[key]) rosters[key] = [];
+        rosters[key].push(p);
+      }
+    }
+
+    var teamHtml = '<div class="team-cards">';
     for (var ti = 0; ti < teamKeys.length; ti++) {
       var num = teamKeys[ti];
-      teamHtml += '<tr><td>' + esc(num) + '</td><td>' + esc(map[num]) + '</td></tr>';
+      var roster = rosters[num] || [];
+      teamHtml += '<div class="team-card">'
+               + '<h4><span class="team-dot ' + (roster.length > 0 ? 'ok' : 'warn') + '"></span>'
+               + esc(num) + ' &middot; ' + esc(map[num]) + '</h4>'
+               + '<ul>';
+      if (roster.length === 0) {
+        teamHtml += '<li><span style="color:var(--muted);font-style:italic;font-size:0.8rem">No players on this team in the current data</span></li>';
+      } else {
+        for (var ri = 0; ri < roster.length; ri++) {
+          var pl = roster[ri];
+          var plName = tmsName(pl) || ('#' + (pl.APACARD || ''));
+          var plApa = pl.APACARD || '';
+          var plSkill = computeTmsSkill(pl).value || '?';
+          teamHtml += '<li>'
+                   + '<span class="p-name">' + esc(plName) + '</span>'
+                   + '<span class="p-apa">#' + esc(plApa) + '</span>'
+                   + '<span class="p-sl">SL' + esc(plSkill) + '</span>'
+                   + '</li>';
+        }
+      }
+      teamHtml += '</ul></div>';
     }
+    teamHtml += '</div>';
     teamsBody.innerHTML = teamHtml;
-    teamsCount.textContent = teamKeys.length;
+    teamsCount.textContent = teamKeys.length + ' teams';
   }
 }
 
