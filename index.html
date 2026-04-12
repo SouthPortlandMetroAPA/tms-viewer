@@ -1979,48 +1979,76 @@ function buildTeamComparison(formTeamMap, tmsTeamsMap, tbl) {
   var formOnly = [];
   var usedTmsKeys = {};
 
+  // Helper: count how many of a form team's players overlap a given
+  // TMS team's roster (by APA# first, name fallback). Used both as a
+  // tiebreaker when multiple TMS teams share the same name and as the
+  // step-2 fallback when no name matches at all.
+  function countOverlap(formPlayers, tmsRoster) {
+    var formKeys = {};
+    for (var pi = 0; pi < formPlayers.length; pi++) {
+      var pk = formPlayers[pi].apaNorm || ('name:' + formPlayers[pi].nameNorm);
+      if (pk) formKeys[pk] = true;
+    }
+    var overlap = 0;
+    for (var rp = 0; rp < tmsRoster.length; rp++) {
+      var pk2 = normalizeApa(tmsRoster[rp].APACARD) || ('name:' + normalizeNameSorted(tmsName(tmsRoster[rp])));
+      if (formKeys[pk2]) overlap++;
+    }
+    return overlap;
+  }
+
   for (var f = 0; f < formTeams.length; f++) {
     var ft = formTeams[f];
     var matchedTmsKey = null;
     var matchReason = '';
 
-    // Step 1: fuzzy name match
+    // Step 1: fuzzy name match. When multiple TMS teams share the same
+    // normalized name (e.g. two "Shenanigans" 3-person teams), collect
+    // ALL candidates and disambiguate by player-roster overlap so each
+    // form team pairs with the correct TMS team instead of claiming the
+    // first one alphabetically.
     if (ft.nameNorm) {
+      var nameCandidates = [];
       for (var tk = 0; tk < tmsKeys.length; tk++) {
         var tnk = tmsKeys[tk];
         if (usedTmsKeys[tnk]) continue;
         if (tmsTeams[tnk].nameNorm && tmsTeams[tnk].nameNorm === ft.nameNorm) {
-          matchedTmsKey = tnk;
-          matchReason = 'name';
-          break;
+          nameCandidates.push(tnk);
         }
+      }
+      if (nameCandidates.length === 1) {
+        matchedTmsKey = nameCandidates[0];
+        matchReason = 'name';
+      } else if (nameCandidates.length > 1) {
+        // Pick the candidate with the highest player overlap. Ties
+        // broken by first-seen. If no candidate has any overlap, still
+        // pair with the first one so at least one form team per name
+        // collision gets its match (better than falling through).
+        var bestKey = null, bestOverlap = -1;
+        for (var ci = 0; ci < nameCandidates.length; ci++) {
+          var candKey = nameCandidates[ci];
+          var ov = countOverlap(ft.players, tmsTeams[candKey].players);
+          if (ov > bestOverlap) { bestOverlap = ov; bestKey = candKey; }
+        }
+        matchedTmsKey = bestKey;
+        matchReason = bestOverlap > 0 ? 'name+players' : 'name (ambiguous)';
       }
     }
 
-    // Step 2: player-overlap fallback
+    // Step 2: player-overlap fallback when no name hit at all
     if (!matchedTmsKey) {
-      var formPlayerKeys = {};
-      for (var pi = 0; pi < ft.players.length; pi++) {
-        var pk = ft.players[pi].apaNorm || ('name:' + ft.players[pi].nameNorm);
-        if (pk) formPlayerKeys[pk] = true;
-      }
-      var formPlayerCount = Object.keys(formPlayerKeys).length;
+      var formPlayerCount = ft.players.length;
       if (formPlayerCount > 0) {
-        var bestKey = null, bestOverlap = 0;
+        var bestKey2 = null, bestOverlap2 = 0;
         for (var tk2 = 0; tk2 < tmsKeys.length; tk2++) {
           var tnk2 = tmsKeys[tk2];
           if (usedTmsKeys[tnk2]) continue;
-          var overlap = 0;
-          var roster = tmsTeams[tnk2].players;
-          for (var rp = 0; rp < roster.length; rp++) {
-            var pk2 = normalizeApa(roster[rp].APACARD) || ('name:' + normalizeNameSorted(tmsName(roster[rp])));
-            if (formPlayerKeys[pk2]) overlap++;
-          }
-          if (overlap > bestOverlap) { bestOverlap = overlap; bestKey = tnk2; }
+          var ov2 = countOverlap(ft.players, tmsTeams[tnk2].players);
+          if (ov2 > bestOverlap2) { bestOverlap2 = ov2; bestKey2 = tnk2; }
         }
         // Require at least 50% of the form roster to overlap
-        if (bestKey && (bestOverlap / formPlayerCount) >= 0.5) {
-          matchedTmsKey = bestKey;
+        if (bestKey2 && (bestOverlap2 / formPlayerCount) >= 0.5) {
+          matchedTmsKey = bestKey2;
           matchReason = 'players';
         }
       }
