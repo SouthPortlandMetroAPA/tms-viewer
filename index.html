@@ -608,7 +608,7 @@
     <div class="tabs" id="viewTabs">
       <button type="button" class="tab active" data-tab="data" onclick="switchTab('data')">Data</button>
       <button type="button" class="tab" data-tab="compare" onclick="switchTab('compare')">Compare Signups</button>
-      <button type="button" class="tab" data-tab="config" onclick="switchTab('config')">Signups Config</button>
+      <button type="button" class="tab" data-tab="config" onclick="switchTab('config')" id="configTab">Signups Config</button>
     </div>
 
     <!-- ── Data view ─────────────────────────────────────────────── -->
@@ -922,8 +922,23 @@ function restoreState() {
   }
 }
 
+// Clear the TMS-zip-derived data for an event (tables, detected game,
+// filename, lastCompare) but PRESERVE the sheet config and just-added
+// marks. The config is tedious to re-enter and has nothing to do with
+// which zip is loaded — it should survive re-uploads.
 function clearEventCache(eventKey) {
+  var prev = state[eventKey];
+  var preservedConfig = prev ? prev.sheetConfig : null;
+  var preservedApa    = prev ? prev.justAddedApa : [];
+  var preservedName   = prev ? prev.justAddedName : [];
+  var preservedActiveTab = prev ? prev.activeTab : 'data';
+
   state[eventKey] = newEventState(eventKey);
+  if (preservedConfig) state[eventKey].sheetConfig = preservedConfig;
+  state[eventKey].justAddedApa = preservedApa;
+  state[eventKey].justAddedName = preservedName;
+  state[eventKey].activeTab = preservedActiveTab;
+
   saveState();
   try {
     sessionStorage.removeItem('tmsviewer.fields.8');
@@ -1048,6 +1063,29 @@ function renderCurrentEvent() {
   var gameEl = document.getElementById('detectedGameLabel');
   if (gameEl) {
     gameEl.textContent = s.detected === '8' ? 'Auto-detected: 8-Ball' : 'Auto-detected: 9-Ball';
+  }
+
+  // If the event has TMS data but the sheet config is incomplete, push
+  // the user toward the Config tab first — re-entering that config is
+  // tedious and we don't want them bouncing between tabs to find it.
+  var configComplete = isSheetConfigComplete(s.sheetConfig);
+  if (!configComplete && s.activeTab === 'compare') {
+    s.activeTab = 'config';
+  }
+
+  // Highlight the Config tab in red when incomplete so it's obvious
+  // something needs filling in.
+  var configTab = document.getElementById('configTab');
+  if (configTab) {
+    if (!configComplete) {
+      configTab.style.background = '#f8d7da';
+      configTab.style.borderColor = '#c0392b';
+      configTab.innerHTML = '\u26A0 Signups Config';
+    } else {
+      configTab.style.background = '';
+      configTab.style.borderColor = '';
+      configTab.innerHTML = '\u2713 Signups Config';
+    }
   }
 
   // Tabs
@@ -1444,6 +1482,19 @@ function extractSheetId(raw) {
   if (m) return m[1];
   if (/^[a-zA-Z0-9_-]{20,}$/.test(s)) return s;
   return '';
+}
+
+// True when the sheet config has enough info to actually run a compare:
+// a sheet URL/ID AND at least one slot with both Name + APA columns set.
+// Used to highlight the Config tab when it's still missing info.
+function isSheetConfigComplete(sheetConfig) {
+  if (!sheetConfig) return false;
+  if (!extractSheetId(sheetConfig.sheetUrl)) return false;
+  for (var i = 0; i < sheetConfig.slots.length; i++) {
+    var sl = sheetConfig.slots[i];
+    if (colLetterToIdx(sl.colName) >= 0 && colLetterToIdx(sl.colApa) >= 0) return true;
+  }
+  return false;
 }
 
 // Skill-change filters
