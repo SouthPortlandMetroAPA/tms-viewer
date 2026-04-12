@@ -2374,6 +2374,63 @@ async function loadAndCompare() {
         }
       }
     }
+    // ── Merge duplicate form rows ─────────────────────────────────
+    // When the same players appear on two form rows for the same event
+    // and one row has a blank team name, the blank one is a stale/draft
+    // submission. Keep the named row, hide the blank one.
+    //
+    // "Same players" = identical set of normalized APAs (or names when
+    // APAs are garbage). Partial overlap also counts: if ≥50% of the
+    // players match between two rows and one is unnamed, merge.
+    if (def.hasTeam) {
+      var rowKeys = Object.keys(teamsByRow);
+      // Build a fingerprint per row: sorted list of player keys
+      var fingerprints = {};
+      for (var rk = 0; rk < rowKeys.length; rk++) {
+        var rn = rowKeys[rk];
+        var fp = teamsByRow[rn].players.map(function(p) {
+          return p.apaNorm || ('name:' + p.nameNorm);
+        }).sort().join('|');
+        fingerprints[rn] = fp;
+      }
+      // For each unnamed row, check if any named row has the same (or
+      // substantially overlapping) fingerprint. If so, mark it for removal.
+      var removeRows = {};
+      for (var rk2 = 0; rk2 < rowKeys.length; rk2++) {
+        var rn2 = rowKeys[rk2];
+        var t2 = teamsByRow[rn2];
+        if (t2.name && t2.name !== '(no team name)') continue; // has a name, skip
+        // Compare against every named row
+        var fpParts2 = fingerprints[rn2].split('|');
+        for (var rk3 = 0; rk3 < rowKeys.length; rk3++) {
+          var rn3 = rowKeys[rk3];
+          if (rn3 === rn2) continue;
+          var t3 = teamsByRow[rn3];
+          if (!t3.name || t3.name === '(no team name)') continue; // also unnamed, skip
+          // Count overlap
+          var fpParts3 = fingerprints[rn3].split('|');
+          var fpSet3 = {};
+          for (var z = 0; z < fpParts3.length; z++) fpSet3[fpParts3[z]] = true;
+          var overlap = 0;
+          for (var z2 = 0; z2 < fpParts2.length; z2++) {
+            if (fpSet3[fpParts2[z2]]) overlap++;
+          }
+          var overlapPct = fpParts2.length > 0 ? overlap / fpParts2.length : 0;
+          if (overlapPct >= 0.5) {
+            removeRows[rn2] = true;
+            break;
+          }
+        }
+      }
+      // Remove merged rows
+      var removedCount = Object.keys(removeRows).length;
+      if (removedCount > 0) {
+        for (var rm in removeRows) {
+          if (removeRows.hasOwnProperty(rm)) delete teamsByRow[rm];
+        }
+      }
+    }
+
     // Convert the row-keyed map to an ordered list of form teams
     var formTeamList = Object.keys(teamsByRow)
       .sort(function(a, b) { return Number(a) - Number(b); })
