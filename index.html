@@ -2352,9 +2352,19 @@ async function loadAndCompare() {
       var rowSignups = extractSignupsFromRow(row, r + 1, cfg, def);
       for (var i = 0; i < rowSignups.length; i++) {
         var sig = rowSignups[i];
-        var key = sig.apaNorm || ('name:' + sig.nameNorm || ('row:' + r + ':' + i));
-        if (seen[key]) continue;
-        seen[key] = true;
+        // For SINGLES: dedup globally by APA so the same person submitting
+        // the form twice doesn't appear twice.
+        // For TEAM EVENTS: do NOT dedup across rows — the same player can
+        // legitimately register on multiple teams (separate form rows). If
+        // we dedup globally, the player gets eaten from their second team
+        // and that team's roster comparison breaks (shows them as "TMS only"
+        // when they're actually in the form). Only dedup within the same
+        // row (if the same player is in multiple slots of one row).
+        if (!def.hasTeam) {
+          var key = sig.apaNorm || ('name:' + sig.nameNorm || ('row:' + r + ':' + i));
+          if (seen[key]) continue;
+          seen[key] = true;
+        }
         signups.push(sig);
         if (def.hasTeam) {
           if (!teamsByRow[sig.rowNum]) {
