@@ -808,6 +808,16 @@ EVENTS.forEach(function(ev) { state[ev.key] = newEventState(ev.key); });
 var currentEvent = 'singles';
 var ignoreNameDiffs = false;
 
+// Skill overrides map (keyed by normalized APA #). Declared here so it's
+// available to computeTmsSkill during the init IIFE's first render —
+// var assignments are NOT hoisted, only declarations are, so if this
+// lived further down in the script the init render would hit undefined.
+var skillOverrides = {};
+try {
+  var rawOv = localStorage.getItem('tmsviewer.skillOverrides');
+  if (rawOv) skillOverrides = JSON.parse(rawOv) || {};
+} catch (e) {}
+
 // Only populated between parse and picker resolution.
 var pendingParse = null; // { file, t8, t9 }
 
@@ -1802,14 +1812,8 @@ function tmsName(rec) {
 //   3. If all TSKL slots are 0/null: use BEST/LOW if they're equal and >0
 //   4. Otherwise: flag as "needs override" and let the user set it manually
 //
-// Overrides persist in localStorage under tmsviewer.skillOverrides so
-// they survive reloads and re-uploads.
-
-var skillOverrides = {};
-try {
-  var rawOv = localStorage.getItem('tmsviewer.skillOverrides');
-  if (rawOv) skillOverrides = JSON.parse(rawOv) || {};
-} catch (e) {}
+// The skillOverrides map + localStorage load are declared at the top of
+// the script near the other state (hoisting safety for the init IIFE).
 
 function saveSkillOverrides() {
   try { localStorage.setItem('tmsviewer.skillOverrides', JSON.stringify(skillOverrides)); } catch (e) {}
