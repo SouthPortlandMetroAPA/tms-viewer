@@ -1505,10 +1505,78 @@ function tmsName(rec) {
   return (first + ' ' + last).trim();
 }
 
+// ─── Skill level determination ──────────────────────────────────────
+// Rules (in order of precedence):
+//   1. User-set override for this APA #
+//   2. First non-zero of TSKL1..TSKL7 (primary team slot with real data)
+//   3. If all TSKL slots are 0/null: use BEST/LOW if they're equal and >0
+//   4. Otherwise: flag as "needs override" and let the user set it manually
+//
+// Overrides persist in localStorage under tmsviewer.skillOverrides so
+// they survive reloads and re-uploads.
+
+var skillOverrides = {};
+try {
+  var rawOv = localStorage.getItem('tmsviewer.skillOverrides');
+  if (rawOv) skillOverrides = JSON.parse(rawOv) || {};
+} catch (e) {}
+
+function saveSkillOverrides() {
+  try { localStorage.setItem('tmsviewer.skillOverrides', JSON.stringify(skillOverrides)); } catch (e) {}
+}
+
+function setSkillOverride(apa, value) {
+  var key = normalizeApa(apa);
+  if (!key) return;
+  var v = String(value || '').trim();
+  if (!v) delete skillOverrides[key];
+  else skillOverrides[key] = v;
+  saveSkillOverrides();
+}
+
+// Inline input onchange from the matched-table TMS SL cell
+function onSkillOverrideChange(inputEl) {
+  var apa = inputEl.dataset.apa;
+  var val = inputEl.value;
+  setSkillOverride(apa, val);
+  renderCompareResults();
+}
+
+function computeTmsSkill(rec) {
+  var apa = normalizeApa(rec.APACARD);
+
+  // 1. Explicit override wins
+  if (apa && skillOverrides[apa] != null && skillOverrides[apa] !== '') {
+    return { value: String(skillOverrides[apa]), source: 'override', needsOverride: false };
+  }
+
+  // 2. First non-zero of TSKL1..TSKL7
+  for (var i = 1; i <= 7; i++) {
+    var v = rec['TSKL' + i];
+    if (v != null && v !== 0) {
+      return { value: String(v), source: 'TSKL' + i, needsOverride: false };
+    }
+  }
+
+  // 3. All TSKL are 0 or null — use BEST/LOW if they agree and are > 0
+  var best = rec.BESTSKILL;
+  var low = rec.LOWSKILL;
+  if (best != null && low != null && best === low && best > 0) {
+    return { value: String(best), source: 'best=low', needsOverride: false };
+  }
+
+  // 4. Cannot determine — needs manual override
+  return {
+    value: '',
+    source: 'unknown',
+    needsOverride: true,
+    best: best,
+    low: low
+  };
+}
+
 function tmsSkillLevel(rec) {
-  // User chose TSKL1 as the canonical "singles" skill.
-  var v = rec.TSKL1;
-  return v == null ? '' : String(v);
+  return computeTmsSkill(rec).value;
 }
 
 // ─── Extract signups from a CSV row per event config ────────────────
@@ -1902,13 +1970,37 @@ function renderCompareResults() {
         // eyeball them. The ignore-name-diffs toggle only affects whether
         // they count toward the "Needs review" filter in isFlagged().
         var teamCell = def.hasTeam ? '<td>' + esc(row.form.teamName || '') + '</td>' : '';
+
+        // TMS SL cell: if needsOverride, render an inline input so the user
+        // can set the correct SL. Otherwise show the computed value with a
+        // badge if it came from an override.
+        var skillInfo = computeTmsSkill(row.tms);
+        var apaForOverride = normalizeApa(row.tms.APACARD);
+        var tmsSlCell;
+        if (skillInfo.needsOverride) {
+          var hint = (skillInfo.best != null || skillInfo.low != null)
+            ? 'best=' + (skillInfo.best == null ? '?' : skillInfo.best) + ', low=' + (skillInfo.low == null ? '?' : skillInfo.low)
+            : 'no data';
+          tmsSlCell = '<td class="mismatch num"><input type="text" class="sl-override" '
+            + 'value="" placeholder="?" title="All TSKL 0; ' + esc(hint) + '" '
+            + 'data-apa="' + esc(apaForOverride) + '" '
+            + 'onchange="onSkillOverrideChange(this)" '
+            + 'style="width:48px;text-align:center;padding:4px;border:1px solid var(--border);border-radius:4px"></td>';
+        } else {
+          var overrideBadge = skillInfo.source === 'override'
+            ? ' <span class="match-by-name" style="background:#d4edda;color:#155724">override</span>'
+            : '';
+          tmsSlCell = '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">'
+            + esc(tmsSL) + overrideBadge + '</td>';
+        }
+
         html += '<tr>' + teamCell
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(formApa) + '</td>'
           + '<td class="' + (f.apaMismatch ? 'mismatch' : '') + '">' + esc(row.tms.APACARD || '') + '</td>'
           + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(row.form.name) + byNameBadge + '</td>'
           + '<td class="' + (f.nameMismatch ? 'mismatch' : '') + '">' + esc(tmsNameStr) + '</td>'
           + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(row.form.skill) + '</td>'
-          + '<td class="' + (f.skillMismatch ? 'mismatch' : '') + ' num">' + esc(tmsSL) + '</td>'
+          + tmsSlCell
           + '</tr>';
       }
       html += '</tbody></table></div>';
