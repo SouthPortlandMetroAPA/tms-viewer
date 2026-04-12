@@ -864,38 +864,55 @@ function saveState() {
   }
 }
 
-// Fields we DROP from records when caching to localStorage. These are the
-// 30-match-history arrays (SCR1..30, SS1..30, OP1..30, SCID1..30,
-// DSHOT1..30, SKLSHT1..30) which balloon each record by ~180 fields. We
-// keep every other field including TSKL1..7, BESTSKILL, LOWSKILL, OHA,
-// TNUM1..7, and all summary stats — the things the compare + data view
-// actually use. Saves ~80% of the state size so all 4 events fit in the
-// browser's ~5 MB localStorage quota.
-function isBloatField(name) {
-  return /^(SCR|SS|OP|SCID|DSHOT|SKLSHT)\d+$/.test(name);
-}
+// Whitelist of fields we KEEP when caching parsed Tscore records to
+// localStorage. Everything else is dropped so the state stays small
+// enough for all 4 events to fit in the browser's ~5 MB quota.
+//
+// These 21 fields cover every feature the app uses:
+//   - Player identity (APACARD, PCODE, FIRST, MINIT, LAST)
+//   - Skill progression (TSKL1..7, BESTSKILL, LOWSKILL, OHA)
+//   - Team roster join (TNUM1..7)
+//
+// Dropped: match-history arrays, per-team safeties/points/matches,
+// session totals, per-team averages/topguns, memo/blob/change flags.
+// That's ~231 fields per record, typically 95% of the record size.
+//
+// Trade-off: if you ever configure admin.html to display e.g. TMPLAYED
+// or MW1 in the data view, those columns will be empty after a reload
+// until you re-upload the zip.
+var CACHED_RECORD_FIELDS = [
+  'APACARD', 'PCODE', 'FIRST', 'MINIT', 'LAST',
+  'TNUM1', 'TNUM2', 'TNUM3', 'TNUM4', 'TNUM5', 'TNUM6', 'TNUM7',
+  'TSKL1', 'TSKL2', 'TSKL3', 'TSKL4', 'TSKL5', 'TSKL6', 'TSKL7',
+  'BESTSKILL', 'LOWSKILL', 'OHA'
+];
+var CACHED_FIELD_SET = {};
+(function() {
+  for (var i = 0; i < CACHED_RECORD_FIELDS.length; i++) {
+    CACHED_FIELD_SET[CACHED_RECORD_FIELDS[i]] = true;
+  }
+})();
 
 function stripTableForCache(tbl) {
   var slimRecords = new Array(tbl.records.length);
   for (var i = 0; i < tbl.records.length; i++) {
     var r = tbl.records[i];
     var out = {};
-    for (var k in r) {
-      if (!r.hasOwnProperty(k)) continue;
-      if (isBloatField(k)) continue;
-      out[k] = r[k];
+    for (var fi = 0; fi < CACHED_RECORD_FIELDS.length; fi++) {
+      var f = CACHED_RECORD_FIELDS[fi];
+      if (r[f] !== undefined) out[f] = r[f];
     }
     slimRecords[i] = out;
   }
-  // Also slim the fieldNames/Types/Sizes arrays so the data view sees
-  // a consistent schema (otherwise it'd try to render empty columns).
+  // Slim the fieldNames/Types/Sizes arrays to match so the data view
+  // only sees columns we actually have data for after reload.
   var keepIdx = [];
   for (var j = 0; j < tbl.fieldNames.length; j++) {
-    if (!isBloatField(tbl.fieldNames[j])) keepIdx.push(j);
+    if (CACHED_FIELD_SET[tbl.fieldNames[j]]) keepIdx.push(j);
   }
-  var slimNames = keepIdx.map(function(i) { return tbl.fieldNames[i]; });
-  var slimTypes = keepIdx.map(function(i) { return tbl.fieldTypes[i]; });
-  var slimSizes = keepIdx.map(function(i) { return tbl.fieldSizes[i]; });
+  var slimNames = keepIdx.map(function(ix) { return tbl.fieldNames[ix]; });
+  var slimTypes = keepIdx.map(function(ix) { return tbl.fieldTypes[ix]; });
+  var slimSizes = keepIdx.map(function(ix) { return tbl.fieldSizes[ix]; });
 
   return {
     tableName: tbl.tableName,
