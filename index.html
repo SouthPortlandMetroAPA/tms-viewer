@@ -625,6 +625,17 @@
           <tbody id="dataBody"></tbody>
         </table>
       </div>
+
+      <!-- Teams section (populated when TTeam.db has rows) -->
+      <div id="teamsSection" class="hidden" style="margin-top:24px">
+        <div class="compare-section-title">Teams from TMS<span class="count" id="teamsCount"></span></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Team #</th><th>Team Name</th></tr></thead>
+            <tbody id="teamsBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ── Signups Config view ───────────────────────────────────── -->
@@ -732,10 +743,14 @@ var DEFAULT_SHEET_CONFIGS = {
 };
 
 // Default columns shown if the user hasn't configured the admin page yet.
-var DEFAULT_COLUMNS = ['APACARD', 'FIRST', 'LAST', 'TSKL1'];
+// __SKILL__ is a synthetic column that runs the skill progression rules
+// and supports inline override — not a raw TMS field.
+var SKILL_COL = '__SKILL__';
+var DEFAULT_COLUMNS = ['APACARD', 'FIRST', 'LAST', SKILL_COL];
 
 // Pretty labels for common fields so the default view reads nicely.
 var FIELD_LABELS = {
+  __SKILL__: 'Skill Level',
   APACARD:  'APA #',
   PCODE:    'Member Code',
   FIRST:    'First',
@@ -774,6 +789,9 @@ function newEventState(key) {
     tables: { '8': null, '9': null },
     detected: null,          // '8' | '9' | null — which game TMS data holds this event
     loadedFilename: '',
+    // Team number → team name map from TTeam.db if that table was populated.
+    // Small (usually < 200 entries) so it's fine to keep in localStorage.
+    teamsMap: {},
     sheetConfig: JSON.parse(JSON.stringify(DEFAULT_SHEET_CONFIGS[key])),
     lastCompare: { matched: [], unmatched: [], teams: [] },
     justAddedApa: [],        // arrays (not Sets) so they JSON-serialize cleanly
@@ -825,6 +843,7 @@ function saveState() {
         },
         detected: s.detected,
         loadedFilename: s.loadedFilename,
+        teamsMap: s.teamsMap || {},
         sheetConfig: s.sheetConfig,
         lastCompare: s.lastCompare,
         justAddedApa: s.justAddedApa,
@@ -905,6 +924,7 @@ function restoreState() {
       s.tables = { '8': p.tables && p.tables['8'] || null, '9': p.tables && p.tables['9'] || null };
       s.detected = p.detected || null;
       s.loadedFilename = p.loadedFilename || '';
+      s.teamsMap = p.teamsMap || {};
       if (p.sheetConfig) s.sheetConfig = p.sheetConfig;
       s.lastCompare = p.lastCompare || { matched: [], unmatched: [], teams: [] };
       s.justAddedApa = p.justAddedApa || [];
@@ -1147,6 +1167,7 @@ async function handleFile(file) {
     var names = Object.keys(zip.files);
     var score8Entry = findZipEntry(zip, names, /tscore8\.db$/i);
     var score9Entry = findZipEntry(zip, names, /tscore9\.db$/i);
+    var tteamEntry  = findZipEntry(zip, names, /tteam\.db$/i);
 
     if (!score8Entry && !score9Entry) {
       setStatus('err', 'No Tscore8.DB or Tscore9.DB found in the zip. Files present: ' + names.join(', '));
@@ -1161,6 +1182,22 @@ async function handleFile(file) {
       t9 = Paradox.parseDb(await score9Entry.async('arraybuffer'));
     }
 
+    // TTeam.db is a v3 Paradox table so field names aren't embedded. We
+    // only need the first two positional fields: field1 = team number,
+    // field2 = team name. Build a simple {teamNum: teamName} map.
+    var teamsMap = {};
+    if (tteamEntry) {
+      try {
+        var tteam = Paradox.parseDb(await tteamEntry.async('arraybuffer'));
+        for (var ti = 0; ti < tteam.records.length; ti++) {
+          var trec = tteam.records[ti];
+          var num = (trec.field1 || '').toString().trim();
+          var nm  = (trec.field2 || '').toString().trim();
+          if (num && nm) teamsMap[num] = nm;
+        }
+      } catch (teamErr) { console.warn('Could not parse TTeam.db:', teamErr); }
+    }
+
     var r8 = t8 ? t8.records.length : 0;
     var r9 = t9 ? t9.records.length : 0;
 
@@ -1169,14 +1206,14 @@ async function handleFile(file) {
     //  2. If neither has records → error.
     //  3. If both have records → show a picker so the user confirms.
     if (r8 > 0 && r9 === 0) {
-      applyParsedTables(file.name, t8, t9, '8');
+      applyParsedTables(file.name, t8, t9, '8', teamsMap);
     } else if (r9 > 0 && r8 === 0) {
-      applyParsedTables(file.name, t8, t9, '9');
+      applyParsedTables(file.name, t8, t9, '9', teamsMap);
     } else if (r8 === 0 && r9 === 0) {
       setStatus('err', 'Both Tscore8 and Tscore9 are empty in ' + file.name + '.');
     } else {
       // Ambiguous — both have records. Show the picker card.
-      pendingParse = { filename: file.name, t8: t8, t9: t9, r8: r8, r9: r9 };
+      pendingParse = { filename: file.name, t8: t8, t9: t9, r8: r8, r9: r9, teamsMap: teamsMap };
       showGamePicker();
     }
   } catch (e) {
@@ -1200,7 +1237,7 @@ function showGamePicker() {
 
 function pickGame(game) {
   if (!pendingParse) return;
-  applyParsedTables(pendingParse.filename, pendingParse.t8, pendingParse.t9, game);
+  applyParsedTables(pendingParse.filename, pendingParse.t8, pendingParse.t9, game, pendingParse.teamsMap || {});
   pendingParse = null;
   document.getElementById('gamePickerCard').classList.add('hidden');
 }
@@ -1213,11 +1250,12 @@ function cancelGamePicker() {
 }
 
 // Store parsed tables in the current event's state and render.
-function applyParsedTables(filename, t8, t9, detected) {
+function applyParsedTables(filename, t8, t9, detected, teamsMap) {
   var s = S();
   s.tables = { '8': t8 || null, '9': t9 || null };
   s.detected = detected;
   s.loadedFilename = filename;
+  s.teamsMap = teamsMap || {};
   s.activeTab = 'data';
   s.currentSort = { col: null, dir: 'asc' };
 
@@ -1363,8 +1401,10 @@ function renderTable() {
   }
 
   var cols = getColumns(s.detected);
-  cols = cols.filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
-  if (cols.length === 0) cols = DEFAULT_COLUMNS.filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
+  // __SKILL__ is synthetic, so it's always "valid" regardless of which
+  // fields the parsed table contains.
+  cols = cols.filter(function(c) { return c === SKILL_COL || tbl.fieldNames.indexOf(c) !== -1; });
+  if (cols.length === 0) cols = DEFAULT_COLUMNS.slice();
 
   var searchEl = document.getElementById('searchInput');
   var q = (searchEl && searchEl.value || '').trim().toLowerCase();
@@ -1397,6 +1437,36 @@ function renderTable() {
     bodyHtml += '<tr>';
     for (var j = 0; j < cols.length; j++) {
       var col2 = cols[j];
+
+      // Synthetic "Skill Level" column — runs the progression rules and
+      // shows an inline input so the user can override. Source is shown
+      // as a small badge next to the value.
+      if (col2 === SKILL_COL) {
+        var info = computeTmsSkill(rows[i]);
+        var apaKey = normalizeApa(rows[i].APACARD);
+        var cellCls = info.needsOverride ? 'num mismatch' : 'num';
+        var srcBadge = '';
+        if (info.source === 'override') {
+          srcBadge = ' <span class="match-by-name" style="background:#d4edda;color:#155724">override</span>';
+        } else if (info.source && info.source.indexOf('TSKL') === 0) {
+          srcBadge = ' <span class="match-by-name" style="background:#eee;color:#555">' + info.source + '</span>';
+        } else if (info.source === 'best=low') {
+          srcBadge = ' <span class="match-by-name" style="background:#eee;color:#555">best=low</span>';
+        }
+        var currentVal = info.value || '';
+        var title = info.needsOverride
+          ? 'All TSKL 0; best=' + (info.best == null ? '?' : info.best) + ', low=' + (info.low == null ? '?' : info.low)
+          : 'Override with a different value';
+        bodyHtml += '<td class="' + cellCls + '">'
+          + '<input type="text" value="' + esc(currentVal) + '" '
+          + 'data-apa="' + esc(apaKey) + '" '
+          + 'onchange="onDataSkillChange(this)" '
+          + 'title="' + esc(title) + '" '
+          + 'style="width:48px;text-align:center;padding:4px;border:1px solid var(--border);border-radius:4px">'
+          + srcBadge + '</td>';
+        continue;
+      }
+
       var v = rows[i][col2];
       var ft = fieldTypeMap[col2];
       if (v == null) {
@@ -1415,6 +1485,25 @@ function renderTable() {
   body.innerHTML = bodyHtml;
 
   document.getElementById('rowCount').textContent = rows.length + ' / ' + tbl.records.length + ' rows';
+
+  // Teams table (shown only when TTeam.db had rows for this event)
+  var teamsSection = document.getElementById('teamsSection');
+  var teamsBody = document.getElementById('teamsBody');
+  var teamsCount = document.getElementById('teamsCount');
+  var map = s.teamsMap || {};
+  var teamKeys = Object.keys(map).sort();
+  if (teamKeys.length === 0) {
+    teamsSection.classList.add('hidden');
+  } else {
+    teamsSection.classList.remove('hidden');
+    var teamHtml = '';
+    for (var ti = 0; ti < teamKeys.length; ti++) {
+      var num = teamKeys[ti];
+      teamHtml += '<tr><td>' + esc(num) + '</td><td>' + esc(map[num]) + '</td></tr>';
+    }
+    teamsBody.innerHTML = teamHtml;
+    teamsCount.textContent = teamKeys.length;
+  }
 }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
@@ -1647,6 +1736,14 @@ function onSkillOverrideChange(inputEl) {
   var val = inputEl.value;
   setSkillOverride(apa, val);
   renderCompareResults();
+}
+
+// Inline input onchange from the Data view's computed-skill column
+function onDataSkillChange(inputEl) {
+  var apa = inputEl.dataset.apa;
+  var val = inputEl.value;
+  setSkillOverride(apa, val);
+  renderTable();
 }
 
 function computeTmsSkill(rec) {
