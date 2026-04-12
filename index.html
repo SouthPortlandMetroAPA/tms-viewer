@@ -1835,8 +1835,12 @@ function normalizeApa(raw) {
   if (raw == null) return '';
   var digits = String(raw).replace(/\D/g, '');
   if (!digits) return '';
-  // Strip leading zeros for consistent compare
-  return String(parseInt(digits, 10));
+  var n = String(parseInt(digits, 10));
+  // APA member numbers are 8 digits. Anything shorter than 7 is garbage
+  // (form typo like "#6", placeholder, etc.) and must fall through to
+  // name-based matching instead of poisoning the APA key.
+  if (n.length < 7) return '';
+  return n;
 }
 
 function normalizeName(raw) {
@@ -1860,10 +1864,9 @@ function normalizeTeamName(raw) {
   if (raw == null) return '';
   return String(raw)
     .toLowerCase()
-    // Strip common filler words that don't identify the team
     .replace(/\bthe\b/g, ' ')
     .replace(/\bteam\b/g, ' ')
-    // Strip non-alphanumeric (punctuation, apostrophes, etc.)
+    .replace(/[''`\u2019\u2018]/g, '')  // strip apostrophes/quotes WITHOUT adding space ("It's" → "Its" not "It s")
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
