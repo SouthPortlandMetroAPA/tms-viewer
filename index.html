@@ -1924,7 +1924,7 @@ function tmsSkillLevel(rec) {
 //      team's players in its roster (matched by APA# or name), treat
 //      them as the same team even if the names disagree.
 // ────────────────────────────────────────────────────────────────────
-function buildTeamComparison(formTeamMap, tmsTeamsMap, tbl) {
+function buildTeamComparison(formTeamList, tmsTeamsMap, tbl) {
   // Build TMS-side teams: each team number → { number, name, players[] }
   var tmsTeams = {};
   var tmsKeys = Object.keys(tmsTeamsMap || {});
@@ -1962,15 +1962,17 @@ function buildTeamComparison(formTeamMap, tmsTeamsMap, tbl) {
     }
   }
 
-  // Form-side teams map is passed in as { teamName: [signups] }
+  // Form-side teams arrive as a flat list (one entry per form row for
+  // team events), already in row order. Normalize names for matching
+  // but keep distinct entries with the same raw name separate.
   var formTeams = [];
-  var formKeys = Object.keys(formTeamMap || {});
-  for (var fi = 0; fi < formKeys.length; fi++) {
-    var fname = formKeys[fi];
+  var inputList = formTeamList || [];
+  for (var fi = 0; fi < inputList.length; fi++) {
+    var ft = inputList[fi];
     formTeams.push({
-      name: fname,
-      nameNorm: normalizeTeamName(fname),
-      players: formTeamMap[fname]
+      name: ft.name,
+      nameNorm: normalizeTeamName(ft.name),
+      players: ft.players
     });
   }
 
@@ -2234,10 +2236,13 @@ async function loadAndCompare() {
     var rows = parseCsvText(csv);
     if (rows.length < 2) throw new Error('Sheet has no data rows.');
 
-    // Extract signups (flat list) + track which signups belong to which team
+    // Extract signups (flat list) + group form-side teams by row number
+    // so two distinct form rows with the same team name (e.g. two
+    // "Shenanigans" 3-person teams) stay as separate teams instead of
+    // being merged into a single 6-player blob.
     var seen = {};
     var signups = [];
-    var teamMap = {};  // teamName → [signups]
+    var teamsByRow = {};  // rowNum → { name, players[] }
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r];
       var rowSignups = extractSignupsFromRow(row, r + 1, cfg, def);
@@ -2248,12 +2253,17 @@ async function loadAndCompare() {
         seen[key] = true;
         signups.push(sig);
         if (def.hasTeam) {
-          var tkey = sig.teamName || '(no team name)';
-          if (!teamMap[tkey]) teamMap[tkey] = [];
-          teamMap[tkey].push(sig);
+          if (!teamsByRow[sig.rowNum]) {
+            teamsByRow[sig.rowNum] = { name: sig.teamName || '(no team name)', players: [] };
+          }
+          teamsByRow[sig.rowNum].players.push(sig);
         }
       }
     }
+    // Convert the row-keyed map to an ordered list of form teams
+    var formTeamList = Object.keys(teamsByRow)
+      .sort(function(a, b) { return Number(a) - Number(b); })
+      .map(function(k) { return teamsByRow[k]; });
 
     // Build TMS lookup maps
     var byApa = {};
@@ -2329,7 +2339,7 @@ async function loadAndCompare() {
     // Form only / TMS only) using TTeam.db + TNUM1..7 on player records.
     var teamComparison = null;
     if (def.hasTeam) {
-      teamComparison = buildTeamComparison(teamMap, s.teamsMap || {}, tbl);
+      teamComparison = buildTeamComparison(formTeamList, s.teamsMap || {}, tbl);
     }
 
     s.lastCompare = {
