@@ -972,7 +972,32 @@ function getColumns(game) {
     var saved = localStorage.getItem('tmsviewer.columns.' + game);
     if (saved) {
       var arr = JSON.parse(saved);
-      if (Array.isArray(arr) && arr.length > 0) return arr;
+      if (Array.isArray(arr) && arr.length > 0) {
+        // Auto-migrate: if the saved config lists raw TSKLn columns,
+        // replace them with the synthetic SKILL_COL which runs the full
+        // progression (first non-zero TSKL1..7 → BEST=LOW → flag) and
+        // supports inline overrides.
+        var migrated = [];
+        var skillInserted = false;
+        for (var i = 0; i < arr.length; i++) {
+          var c = arr[i];
+          if (/^TSKL[1-7]$/.test(c)) {
+            if (!skillInserted) {
+              migrated.push(SKILL_COL);
+              skillInserted = true;
+            }
+            // skip the raw TSKLn columns — one progression col replaces them
+            continue;
+          }
+          migrated.push(c);
+        }
+        // If neither SKILL_COL nor any TSKLn was present, leave the list
+        // alone. If we migrated, persist the cleaned list.
+        if (skillInserted && migrated.join(',') !== arr.join(',')) {
+          try { localStorage.setItem('tmsviewer.columns.' + game, JSON.stringify(migrated)); } catch (e) {}
+        }
+        return migrated;
+      }
     }
   } catch (e) {}
   return DEFAULT_COLUMNS.slice();
