@@ -1778,16 +1778,15 @@ function teamHasRosterMissing(team) {
   }
   return false;
 }
-// A team is flagged only for TEAM-LEVEL issues: wrong/missing players
-// or team paired with the wrong TMS team (name mismatch). Player data
-// quality (skill changes, APA typos, name spelling) are NOT team issues
-// — those stay visible in the inline roster table and the filter pills
-// (Skill issues, APA issues, Name issues) but don't move the team from
-// "clean" to "needs review".
+// A team is flagged ONLY when the roster composition is wrong — players
+// missing from either the form or TMS side. Everything else is data
+// quality noise that stays visible in the inline roster table and the
+// filter pills but doesn't flag the team:
+//   - Team name spelling diffs → cosmetic (pairing confirmed by overlap)
+//   - Skill level changes → player-level, not team-level
+//   - APA/name mismatches → data-entry noise on correct players
 function isTeamFlagged(team) {
-  if (teamHasRosterMissing(team)) return true;
-  if (team.nameMismatch) return true;
-  return false;
+  return teamHasRosterMissing(team);
 }
 
 // ─── CSV parser (handles quoted fields with embedded commas/newlines) ─
