@@ -2135,23 +2135,37 @@ function buildTeamComparison(formTeamList, tmsTeamsMap, tbl) {
   // If every player in a formOnly team already appears in an inBoth
   // team's form roster, the formOnly entry is a duplicate submission
   // (same people, different form row) and should be hidden.
-  var inBothFormPlayerKeys = {};
+  // Build a lookup: player key → which inBoth team they're on
+  var inBothPlayerToTeam = {};
   for (var ib2 = 0; ib2 < inBoth.length; ib2++) {
     for (var ir = 0; ir < inBoth[ib2].roster.length; ir++) {
       var rEntry = inBoth[ib2].roster[ir];
       if (rEntry.formPlayer) {
         var pk3 = rEntry.formPlayer.apaNorm || ('name:' + rEntry.formPlayer.nameNorm);
-        if (pk3) inBothFormPlayerKeys[pk3] = true;
+        if (pk3) inBothPlayerToTeam[pk3] = ib2;
       }
     }
   }
   formOnly = formOnly.filter(function(foTeam) {
-    if (foTeam.players.length === 0) return false; // empty row, drop
+    if (foTeam.players.length === 0) return false;
+    // Check if ALL of this team's players are already in an inBoth team
+    var targetIdx = -1;
     var allAccountedFor = foTeam.players.every(function(p) {
       var pk4 = p.apaNorm || ('name:' + p.nameNorm);
-      return inBothFormPlayerKeys[pk4];
+      if (inBothPlayerToTeam[pk4] !== undefined) {
+        targetIdx = inBothPlayerToTeam[pk4];
+        return true;
+      }
+      return false;
     });
-    return !allAccountedFor; // keep only if NOT all players are already in inBoth
+    if (allAccountedFor && targetIdx >= 0) {
+      // Annotate the inBoth team so the UI can note the duplicate
+      var target = inBoth[targetIdx];
+      if (!target.duplicateFormEntries) target.duplicateFormEntries = [];
+      target.duplicateFormEntries.push(foTeam.formName || '(no team name)');
+      return false; // suppress this formOnly entry
+    }
+    return true;
   });
 
   // ── Post-match cross-check ──────────────────────────────────────
@@ -3008,6 +3022,12 @@ function renderInBothCard(team) {
     html += '<div style="font-size:0.75rem;color:#856404;background:#fff3cd;padding:4px 8px;border-radius:4px;margin-bottom:6px">'
          + 'Form says <strong>' + esc(team.formName) + '</strong>, TMS says <strong>' + esc(team.tmsName) + '</strong>'
          + (team.matchReason === 'players' ? ' (matched by player overlap)' : '')
+         + '</div>';
+  }
+  if (team.duplicateFormEntries && team.duplicateFormEntries.length > 0) {
+    html += '<div style="font-size:0.75rem;color:#555;background:#e8e8e8;padding:4px 8px;border-radius:4px;margin-bottom:6px">'
+         + '\u26A0 Multiple form entries for this team (' + (team.duplicateFormEntries.length + 1) + ' total). '
+         + 'Duplicate submissions: ' + team.duplicateFormEntries.map(function(n) { return '<strong>' + esc(n) + '</strong>'; }).join(', ')
          + '</div>';
   }
 
