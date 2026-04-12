@@ -838,19 +838,57 @@ function saveState() {
     localStorage.setItem(CURRENT_EVENT_KEY, currentEvent);
   } catch (e) {
     console.warn('Could not save state:', e);
+    // Surface quota errors to the user so they know a re-upload will be
+    // needed on next reload, rather than silently losing data.
+    if (e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''))) {
+      setStatus('err', 'Browser storage is full — current upload will not persist across reloads. '
+        + 'Try clearing older events with Upload new file to free space.');
+    }
   }
 }
 
+// Fields we DROP from records when caching to localStorage. These are the
+// 30-match-history arrays (SCR1..30, SS1..30, OP1..30, SCID1..30,
+// DSHOT1..30, SKLSHT1..30) which balloon each record by ~180 fields. We
+// keep every other field including TSKL1..7, BESTSKILL, LOWSKILL, OHA,
+// TNUM1..7, and all summary stats — the things the compare + data view
+// actually use. Saves ~80% of the state size so all 4 events fit in the
+// browser's ~5 MB localStorage quota.
+function isBloatField(name) {
+  return /^(SCR|SS|OP|SCID|DSHOT|SKLSHT)\d+$/.test(name);
+}
+
 function stripTableForCache(tbl) {
+  var slimRecords = new Array(tbl.records.length);
+  for (var i = 0; i < tbl.records.length; i++) {
+    var r = tbl.records[i];
+    var out = {};
+    for (var k in r) {
+      if (!r.hasOwnProperty(k)) continue;
+      if (isBloatField(k)) continue;
+      out[k] = r[k];
+    }
+    slimRecords[i] = out;
+  }
+  // Also slim the fieldNames/Types/Sizes arrays so the data view sees
+  // a consistent schema (otherwise it'd try to render empty columns).
+  var keepIdx = [];
+  for (var j = 0; j < tbl.fieldNames.length; j++) {
+    if (!isBloatField(tbl.fieldNames[j])) keepIdx.push(j);
+  }
+  var slimNames = keepIdx.map(function(i) { return tbl.fieldNames[i]; });
+  var slimTypes = keepIdx.map(function(i) { return tbl.fieldTypes[i]; });
+  var slimSizes = keepIdx.map(function(i) { return tbl.fieldSizes[i]; });
+
   return {
     tableName: tbl.tableName,
-    fieldNames: tbl.fieldNames,
-    fieldTypes: tbl.fieldTypes,
-    fieldSizes: tbl.fieldSizes,
-    records: tbl.records,
+    fieldNames: slimNames,
+    fieldTypes: slimTypes,
+    fieldSizes: slimSizes,
+    records: slimRecords,
     recordSize: tbl.recordSize,
     headerSize: tbl.headerSize,
-    numFields: tbl.numFields
+    numFields: slimNames.length
   };
 }
 
