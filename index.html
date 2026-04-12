@@ -1866,7 +1866,8 @@ function normalizeTeamName(raw) {
     .toLowerCase()
     .replace(/\bthe\b/g, ' ')
     .replace(/\bteam\b/g, ' ')
-    .replace(/[''`\u2019\u2018]/g, '')  // strip apostrophes/quotes WITHOUT adding space ("It's" → "Its" not "It s")
+    .replace(/\band\b/g, ' ')       // "Toni and The Tiger" → same as "Toni& the Tiger"
+    .replace(/[''`\u2019\u2018]/g, '')  // strip apostrophes without space
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -2129,6 +2130,29 @@ function buildTeamComparison(formTeamList, tmsTeamsMap, tbl) {
       players: tmsTeams[tnk3].players
     });
   }
+
+  // ── Post-match: suppress duplicate-submission formOnly teams ────
+  // If every player in a formOnly team already appears in an inBoth
+  // team's form roster, the formOnly entry is a duplicate submission
+  // (same people, different form row) and should be hidden.
+  var inBothFormPlayerKeys = {};
+  for (var ib2 = 0; ib2 < inBoth.length; ib2++) {
+    for (var ir = 0; ir < inBoth[ib2].roster.length; ir++) {
+      var rEntry = inBoth[ib2].roster[ir];
+      if (rEntry.formPlayer) {
+        var pk3 = rEntry.formPlayer.apaNorm || ('name:' + rEntry.formPlayer.nameNorm);
+        if (pk3) inBothFormPlayerKeys[pk3] = true;
+      }
+    }
+  }
+  formOnly = formOnly.filter(function(foTeam) {
+    if (foTeam.players.length === 0) return false; // empty row, drop
+    var allAccountedFor = foTeam.players.every(function(p) {
+      var pk4 = p.apaNorm || ('name:' + p.nameNorm);
+      return inBothFormPlayerKeys[pk4];
+    });
+    return !allAccountedFor; // keep only if NOT all players are already in inBoth
+  });
 
   // ── Post-match cross-check ──────────────────────────────────────
   // Scan formOnly and tmsOnly for players that DO exist on the other
