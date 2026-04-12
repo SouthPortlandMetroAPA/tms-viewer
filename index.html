@@ -807,7 +807,8 @@ function newEventState(key) {
     searchInput: '',
     currentSort: { col: null, dir: 'asc' },
     matchedFilter: 'all',
-    unmatchedFilter: 'all'
+    unmatchedFilter: 'all',
+    teamFilter: 'all'        // 'all' | 'flagged' | 'clean' | 'name' | 'skill' | 'apa' | 'roster'
   };
 }
 
@@ -1749,6 +1750,43 @@ function isFlagged(row) {
 
 function setMatchedFilter(key)   { S().matchedFilter = key; saveState(); renderCompareResults(); }
 function setUnmatchedFilter(key) { S().unmatchedFilter = key; saveState(); renderCompareResults(); }
+function setTeamFilter(key)      { S().teamFilter = key; saveState(); renderCompareResults(); }
+
+// ─── Team-level flag helpers (respects ignoreNameDiffs) ─────────────
+function teamHasNameIssue(team) {
+  if (team.nameMismatch) return true;
+  for (var i = 0; i < team.roster.length; i++) {
+    if (team.roster[i].nameMismatch) return true;
+  }
+  return false;
+}
+function teamHasSkillIssue(team) {
+  for (var i = 0; i < team.roster.length; i++) {
+    if (team.roster[i].skillMismatch) return true;
+  }
+  return false;
+}
+function teamHasApaIssue(team) {
+  for (var i = 0; i < team.roster.length; i++) {
+    if (team.roster[i].apaMismatch) return true;
+  }
+  return false;
+}
+function teamHasRosterMissing(team) {
+  for (var i = 0; i < team.roster.length; i++) {
+    if (team.roster[i].status !== 'both') return true;
+  }
+  return false;
+}
+// A team is flagged if it has any non-name issue, OR (any name issue
+// AND the user hasn't opted to ignore name differences).
+function isTeamFlagged(team) {
+  if (teamHasRosterMissing(team)) return true;
+  if (teamHasSkillIssue(team)) return true;
+  if (teamHasApaIssue(team)) return true;
+  if (!ignoreNameDiffs && teamHasNameIssue(team)) return true;
+  return false;
+}
 
 // ─── CSV parser (handles quoted fields with embedded commas/newlines) ─
 function parseCsvText(text) {
@@ -2627,23 +2665,14 @@ function renderTeamComparison(tc) {
   var formOnly = tc.formOnly || [];
   var tmsOnly = tc.tmsOnly || [];
 
-  // Split in-both into flagged vs clean. A team is flagged if:
-  //   - team name mismatches between form and TMS
-  //   - any roster entry isn't 'both' (missing from form or TMS roster)
-  //   - any matched player has a skill / name / APA mismatch
+  // Split in-both into flagged vs clean using isTeamFlagged, which
+  // respects the "Ignore name differences" toggle — when that toggle is
+  // on, teams whose ONLY issue is a name mismatch are considered clean.
   var inBothFlagged = [];
   var inBothClean = [];
   for (var ib = 0; ib < inBoth.length; ib++) {
     var team = inBoth[ib];
-    var flagged = team.nameMismatch;
-    if (!flagged) {
-      for (var ri = 0; ri < team.roster.length; ri++) {
-        var entry = team.roster[ri];
-        if (entry.status !== 'both') { flagged = true; break; }
-        if (entry.skillMismatch || entry.nameMismatch || entry.apaMismatch) { flagged = true; break; }
-      }
-    }
-    (flagged ? inBothFlagged : inBothClean).push(team);
+    (isTeamFlagged(team) ? inBothFlagged : inBothClean).push(team);
   }
 
   var total = inBoth.length + formOnly.length + tmsOnly.length;
@@ -2709,30 +2738,79 @@ function renderTeamComparison(tc) {
     html += '</div>';
   }
 
-  // ══ 3. IN BOTH, FLAGGED (action: review + fix) ══════════════════
-  if (inBothFlagged.length > 0) {
-    html += sectionHeader('5c4600', '! In both with issues', 'roster or skill mismatch', inBothFlagged.length);
-    html += '<div class="team-cards">';
-    for (var fbi = 0; fbi < inBothFlagged.length; fbi++) {
-      html += renderInBothCard(inBothFlagged[fbi]);
-    }
-    html += '</div>';
-  }
+  // ══ 3. IN BOTH — filtered by teamFilter ═════════════════════════
+  // Count buckets per filter so the pills can show (n) counts
+  var nameCount   = inBoth.filter(teamHasNameIssue).length;
+  var skillCount  = inBoth.filter(teamHasSkillIssue).length;
+  var apaCount    = inBoth.filter(teamHasApaIssue).length;
+  var rosterCount = inBoth.filter(teamHasRosterMissing).length;
 
-  // ══ 4. IN BOTH, CLEAN (collapsed, reference only) ═══════════════
-  if (inBothClean.length > 0) {
-    html += '<details style="margin-top:16px">'
-         + '<summary style="cursor:pointer;font-size:0.85rem;color:#155724;font-weight:700;padding:8px 0">'
-         + '\u2713 ' + inBothClean.length + ' clean teams (click to expand)'
-         + '</summary>'
-         + '<div class="team-cards" style="margin-top:8px">';
-    for (var ci = 0; ci < inBothClean.length; ci++) {
-      html += renderInBothCard(inBothClean[ci]);
+  if (inBoth.length > 0) {
+    html += sectionHeader('155724', 'In both', 'teams in form and TMS', inBoth.length);
+
+    // Filter pill row
+    var tf = S().teamFilter || 'all';
+    html += '<div class="filter-pills">'
+         + teamFilterPillHtml('all',     'All (' + inBoth.length + ')', tf)
+         + teamFilterPillHtml('flagged', '\u26A0 Needs review (' + inBothFlagged.length + ')', tf)
+         + teamFilterPillHtml('clean',   '\u2713 Clean (' + inBothClean.length + ')', tf)
+         + teamFilterPillHtml('name',    'Name issues (' + nameCount + ')', tf)
+         + teamFilterPillHtml('skill',   'Skill issues (' + skillCount + ')', tf)
+         + teamFilterPillHtml('apa',     'APA issues (' + apaCount + ')', tf)
+         + teamFilterPillHtml('roster',  'Roster issues (' + rosterCount + ')', tf)
+         + '</div>';
+
+    // Apply filter
+    var filtered;
+    switch (tf) {
+      case 'flagged': filtered = inBothFlagged; break;
+      case 'clean':   filtered = inBothClean; break;
+      case 'name':    filtered = inBoth.filter(teamHasNameIssue); break;
+      case 'skill':   filtered = inBoth.filter(teamHasSkillIssue); break;
+      case 'apa':     filtered = inBoth.filter(teamHasApaIssue); break;
+      case 'roster':  filtered = inBoth.filter(teamHasRosterMissing); break;
+      default:        filtered = inBoth;
     }
-    html += '</div></details>';
+
+    if (filtered.length === 0) {
+      html += '<div style="padding:12px;color:var(--muted);font-style:italic">No teams match this filter.</div>';
+    } else if (tf === 'all') {
+      // Default view: flagged expanded, clean collapsed (the old layout)
+      if (inBothFlagged.length > 0) {
+        html += '<div class="team-cards">';
+        for (var fbi = 0; fbi < inBothFlagged.length; fbi++) {
+          html += renderInBothCard(inBothFlagged[fbi]);
+        }
+        html += '</div>';
+      }
+      if (inBothClean.length > 0) {
+        html += '<details style="margin-top:16px">'
+             + '<summary style="cursor:pointer;font-size:0.85rem;color:#155724;font-weight:700;padding:8px 0">'
+             + '\u2713 ' + inBothClean.length + ' clean teams (click to expand)'
+             + '</summary>'
+             + '<div class="team-cards" style="margin-top:8px">';
+        for (var ci = 0; ci < inBothClean.length; ci++) {
+          html += renderInBothCard(inBothClean[ci]);
+        }
+        html += '</div></details>';
+      }
+    } else {
+      // Specific filter: flat list of matching team cards
+      html += '<div class="team-cards">';
+      for (var fii = 0; fii < filtered.length; fii++) {
+        html += renderInBothCard(filtered[fii]);
+      }
+      html += '</div>';
+    }
   }
 
   return '<div>' + html + '</div>';
+}
+
+function teamFilterPillHtml(key, label, activeKey) {
+  var active = activeKey === key ? ' active' : '';
+  return '<button type="button" class="filter-pill' + active + '" onclick="setTeamFilter(\'' + key + '\')">'
+       + esc(label) + '</button>';
 }
 
 // Inline helpers for renderTeamComparison
@@ -2749,13 +2827,8 @@ function sectionHeader(color, title, subtitle, count) {
 // Render a single "in both" team as a full-width card with its roster
 // comparison mini-table inline.
 function renderInBothCard(team) {
-  var anyIssue = team.nameMismatch;
-  for (var rj = 0; rj < team.roster.length; rj++) {
-    var rowEntry = team.roster[rj];
-    if (rowEntry.status !== 'both') { anyIssue = true; break; }
-    if (rowEntry.skillMismatch || rowEntry.nameMismatch || rowEntry.apaMismatch) { anyIssue = true; break; }
-  }
-  var dotClass = anyIssue ? 'warn' : 'ok';
+  // Team dot follows isTeamFlagged (which already respects ignoreNameDiffs)
+  var dotClass = isTeamFlagged(team) ? 'warn' : 'ok';
 
   var html = '<div class="team-card">';
   html += '<h4><span class="team-dot ' + dotClass + '"></span>'
@@ -2781,12 +2854,12 @@ function renderInBothCard(team) {
     var pe = team.roster[p];
     if (pe.status === 'both') {
       var skillCls = pe.skillMismatch ? 'mismatch num' : 'num';
-      // Highlight Form Player and TMS Player cells when the name or APA
-      // differs between sources — catches "AJ Price vs Anthony Price"
-      // style discrepancies that used to slip through as clean.
-      var formCellCls = (pe.nameMismatch || pe.apaMismatch) ? 'mismatch' : '';
-      var tmsCellCls  = (pe.nameMismatch || pe.apaMismatch) ? 'mismatch' : '';
-      var hasIssue = pe.skillMismatch || pe.nameMismatch || pe.apaMismatch;
+      // Name mismatches are suppressed visually when the "Ignore name
+      // differences" toggle is on (formal-name vs nickname noise).
+      var effectiveNameMismatch = pe.nameMismatch && !ignoreNameDiffs;
+      var formCellCls = (effectiveNameMismatch || pe.apaMismatch) ? 'mismatch' : '';
+      var tmsCellCls  = (effectiveNameMismatch || pe.apaMismatch) ? 'mismatch' : '';
+      var hasIssue = pe.skillMismatch || pe.apaMismatch || effectiveNameMismatch;
       var statusBadge = hasIssue
         ? '<span class="p-status warn">Check</span>'
         : '<span class="p-status ok">OK</span>';
