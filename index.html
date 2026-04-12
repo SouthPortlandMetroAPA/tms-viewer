@@ -2130,6 +2130,68 @@ function buildTeamComparison(formTeamList, tmsTeamsMap, tbl) {
     });
   }
 
+  // ── Post-match cross-check ──────────────────────────────────────
+  // Scan formOnly and tmsOnly for players that DO exist on the other
+  // side (in ANY team, not just unused ones). These are "suspicious
+  // unmatched" entries where the matcher couldn't pair the teams but
+  // individual players are clearly present in both sources. Surfacing
+  // these catches cases where:
+  //   - The team name didn't match AND overlap was below threshold
+  //   - A player is on a different team in TMS vs the form
+  //   - 2 of 3 players aren't in TMS yet but 1 is
+  //
+  // Build full lookup sets (ignoring which teams are used/unused)
+  var allTmsPlayersByApa = {};
+  var allTmsPlayersByName = {};
+  if (tbl && tbl.records) {
+    for (var cx = 0; cx < tbl.records.length; cx++) {
+      var cr = tbl.records[cx];
+      var ca = normalizeApa(cr.APACARD);
+      var cn = normalizeNameSorted(tmsName(cr));
+      if (ca) allTmsPlayersByApa[ca] = cr;
+      if (cn) allTmsPlayersByName[cn] = cr;
+    }
+  }
+  var allFormPlayersByApa = {};
+  var allFormPlayersByName = {};
+  for (var fx = 0; fx < formTeams.length; fx++) {
+    for (var px = 0; px < formTeams[fx].players.length; px++) {
+      var fp = formTeams[fx].players[px];
+      if (fp.apaNorm) allFormPlayersByApa[fp.apaNorm] = fp;
+      if (fp.nameNorm) allFormPlayersByName[fp.nameNorm] = fp;
+    }
+  }
+
+  // Annotate formOnly teams: which players have a TMS record somewhere?
+  for (var fo = 0; fo < formOnly.length; fo++) {
+    var foTeam = formOnly[fo];
+    var foHits = 0;
+    for (var fp2 = 0; fp2 < foTeam.players.length; fp2++) {
+      var p = foTeam.players[fp2];
+      var foundInTms = (p.apaNorm && allTmsPlayersByApa[p.apaNorm])
+                    || (p.nameNorm && allTmsPlayersByName[p.nameNorm]);
+      if (foundInTms) foHits++;
+    }
+    foTeam.playersInTms = foHits;
+    foTeam.totalPlayers = foTeam.players.length;
+  }
+
+  // Annotate tmsOnly teams: which players have a form signup somewhere?
+  for (var to = 0; to < tmsOnly.length; to++) {
+    var toTeam = tmsOnly[to];
+    var toHits = 0;
+    for (var tp = 0; tp < toTeam.players.length; tp++) {
+      var p2 = toTeam.players[tp];
+      var pa = normalizeApa(p2.APACARD);
+      var pn = normalizeNameSorted(tmsName(p2));
+      var foundInForm = (pa && allFormPlayersByApa[pa])
+                     || (pn && allFormPlayersByName[pn]);
+      if (foundInForm) toHits++;
+    }
+    toTeam.playersInForm = toHits;
+    toTeam.totalPlayers = toTeam.players.length;
+  }
+
   return { inBoth: inBoth, formOnly: formOnly, tmsOnly: tmsOnly };
 }
 
@@ -2702,9 +2764,15 @@ function renderTeamComparison(tc) {
     html += '<div class="team-cards compact">';
     for (var fi = 0; fi < formOnly.length; fi++) {
       var ft = formOnly[fi];
+      var foWarn = ft.playersInTms > 0;
       html += '<div class="team-card">'
-           + '<h4><span class="team-dot warn"></span>' + esc(ft.formName) + '</h4>'
-           + '<ul>';
+           + '<h4><span class="team-dot ' + (foWarn ? 'err' : 'warn') + '"></span>' + esc(ft.formName || '(no team name)') + '</h4>';
+      if (foWarn) {
+        html += '<div style="font-size:0.75rem;color:#721c24;background:#f8d7da;padding:4px 8px;border-radius:4px;margin-bottom:4px">'
+             + ft.playersInTms + ' of ' + ft.totalPlayers + ' players exist in TMS (on other teams?) &mdash; possible mismatch'
+             + '</div>';
+      }
+      html += '<ul>';
       for (var pi = 0; pi < ft.players.length; pi++) {
         var pl = ft.players[pi];
         html += '<li>'
@@ -2724,11 +2792,17 @@ function renderTeamComparison(tc) {
     html += '<div class="team-cards compact">';
     for (var ti = 0; ti < tmsOnly.length; ti++) {
       var tt = tmsOnly[ti];
+      var toWarn = tt.playersInForm > 0;
       html += '<div class="team-card">'
            + '<h4><span class="team-dot err"></span>' + esc(tt.tmsName)
            + ' <span style="color:var(--muted);font-weight:400;font-size:0.75rem">#' + esc(tt.tmsNumber) + '</span>'
-           + '</h4>'
-           + '<ul>';
+           + '</h4>';
+      if (toWarn) {
+        html += '<div style="font-size:0.75rem;color:#721c24;background:#f8d7da;padding:4px 8px;border-radius:4px;margin-bottom:4px">'
+             + tt.playersInForm + ' of ' + tt.totalPlayers + ' players have form signups (on other teams?) &mdash; possible mismatch'
+             + '</div>';
+      }
+      html += '<ul>';
       for (var tpi = 0; tpi < tt.players.length; tpi++) {
         var tpl = tt.players[tpi];
         html += '<li>'
