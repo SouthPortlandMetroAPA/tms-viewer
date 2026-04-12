@@ -829,6 +829,21 @@ var STATE_KEY = 'tmsviewer.state.v2';
 var IGNORE_NAMES_KEY = 'tmsviewer.ignoreNameDiffs';
 var CURRENT_EVENT_KEY = 'tmsviewer.currentEvent';
 
+// Clean up stale keys from earlier versions so they don't eat quota.
+// These were replaced during the per-event refactor but never deleted
+// from users' browsers.
+(function cleanupLegacyKeys() {
+  var legacy = [
+    'tmsviewer.cache.tables.v1',
+    'tmsviewer.cache.filename.v1',
+    'tmsviewer.justAdded.apa',
+    'tmsviewer.justAdded.name'
+  ];
+  for (var i = 0; i < legacy.length; i++) {
+    try { localStorage.removeItem(legacy[i]); } catch (e) {}
+  }
+})();
+
 function getEventDef(key) {
   for (var i = 0; i < EVENTS.length; i++) if (EVENTS[i].key === key) return EVENTS[i];
   return null;
@@ -844,6 +859,18 @@ function saveState() {
     var payload = {};
     Object.keys(state).forEach(function(k) {
       var s = state[k];
+      // Only persist what's expensive to rebuild:
+      //   - slimmed TMS tables (whitelist strip via stripTableForCache)
+      //   - teamsMap (small, user-visible)
+      //   - sheetConfig (tedious to re-enter by hand)
+      //   - loadedFilename + detected game (identifying metadata)
+      //   - activeTab (nav preference)
+      //
+      // lastCompare is deliberately NOT persisted — it contains full
+      // record objects referenced from tables which would ~double the
+      // saved size. It's cheap to rebuild: the user clicks Load Signups
+      // which refetches + re-matches in <1s. The compare filters are
+      // also ephemeral and reset between sessions.
       payload[k] = {
         tables: {
           '8': s.tables['8'] ? stripTableForCache(s.tables['8']) : null,
@@ -853,12 +880,7 @@ function saveState() {
         loadedFilename: s.loadedFilename,
         teamsMap: s.teamsMap || {},
         sheetConfig: s.sheetConfig,
-        lastCompare: s.lastCompare,
-        justAddedApa: s.justAddedApa,
-        justAddedName: s.justAddedName,
-        activeTab: s.activeTab,
-        matchedFilter: s.matchedFilter,
-        unmatchedFilter: s.unmatchedFilter
+        activeTab: s.activeTab
       };
     });
     localStorage.setItem(STATE_KEY, JSON.stringify(payload));
@@ -951,12 +973,13 @@ function restoreState() {
       s.loadedFilename = p.loadedFilename || '';
       s.teamsMap = p.teamsMap || {};
       if (p.sheetConfig) s.sheetConfig = p.sheetConfig;
-      s.lastCompare = p.lastCompare || { matched: [], unmatched: [], teams: [] };
-      s.justAddedApa = p.justAddedApa || [];
-      s.justAddedName = p.justAddedName || [];
+      // lastCompare and filters are ephemeral — reset on restore
+      s.lastCompare = { matched: [], unmatched: [], tmsOnly: [], teams: [], teamComparison: null };
+      s.justAddedApa = [];
+      s.justAddedName = [];
       s.activeTab = p.activeTab || 'data';
-      s.matchedFilter = p.matchedFilter || 'all';
-      s.unmatchedFilter = p.unmatchedFilter || 'all';
+      s.matchedFilter = 'all';
+      s.unmatchedFilter = 'all';
     });
     var savedEvent = localStorage.getItem(CURRENT_EVENT_KEY);
     if (savedEvent && state[savedEvent]) currentEvent = savedEvent;
