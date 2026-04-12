@@ -2084,15 +2084,26 @@ function compareRoster(formPlayers, tmsPlayers) {
       tmsUsed[matchIdx] = true;
       var tms = tmsPlayers[matchIdx];
       var tmsSL = tmsSkillLevel(tms);
+      var tmsNameStr = tmsName(tms);
       var skillMismatch = !!(fp.skill && tmsSL && String(fp.skill).trim() !== String(tmsSL).trim());
+      // Name mismatch = form and TMS names disagree after normalization.
+      // Only possible when the match was made by APA # (nameMatch path
+      // would have made them equal by definition).
+      var nameMismatch = normalizeNameSorted(fp.name) !== normalizeNameSorted(tmsNameStr);
+      // APA # mismatch = both sides have an APA but they differ. Only
+      // possible when the match was made by name.
+      var tmsApaNorm = normalizeApa(tms.APACARD);
+      var apaMismatchRow = !!(fp.apaNorm && tmsApaNorm && fp.apaNorm !== tmsApaNorm);
       out.push({
         status: 'both',
         formPlayer: fp,
         tmsPlayer: tms,
-        tmsName: tmsName(tms),
+        tmsName: tmsNameStr,
         tmsApa: tms.APACARD || '',
         tmsSkill: tmsSL,
-        skillMismatch: skillMismatch
+        skillMismatch: skillMismatch,
+        nameMismatch: nameMismatch,
+        apaMismatch: apaMismatchRow
       });
     } else {
       out.push({ status: 'formOnly', formPlayer: fp });
@@ -2603,7 +2614,10 @@ function renderTeamComparison(tc) {
   var formOnly = tc.formOnly || [];
   var tmsOnly = tc.tmsOnly || [];
 
-  // Split in-both into flagged vs clean
+  // Split in-both into flagged vs clean. A team is flagged if:
+  //   - team name mismatches between form and TMS
+  //   - any roster entry isn't 'both' (missing from form or TMS roster)
+  //   - any matched player has a skill / name / APA mismatch
   var inBothFlagged = [];
   var inBothClean = [];
   for (var ib = 0; ib < inBoth.length; ib++) {
@@ -2612,7 +2626,8 @@ function renderTeamComparison(tc) {
     if (!flagged) {
       for (var ri = 0; ri < team.roster.length; ri++) {
         var entry = team.roster[ri];
-        if (entry.status !== 'both' || entry.skillMismatch) { flagged = true; break; }
+        if (entry.status !== 'both') { flagged = true; break; }
+        if (entry.skillMismatch || entry.nameMismatch || entry.apaMismatch) { flagged = true; break; }
       }
     }
     (flagged ? inBothFlagged : inBothClean).push(team);
@@ -2723,7 +2738,9 @@ function sectionHeader(color, title, subtitle, count) {
 function renderInBothCard(team) {
   var anyIssue = team.nameMismatch;
   for (var rj = 0; rj < team.roster.length; rj++) {
-    if (team.roster[rj].status !== 'both' || team.roster[rj].skillMismatch) { anyIssue = true; break; }
+    var rowEntry = team.roster[rj];
+    if (rowEntry.status !== 'both') { anyIssue = true; break; }
+    if (rowEntry.skillMismatch || rowEntry.nameMismatch || rowEntry.apaMismatch) { anyIssue = true; break; }
   }
   var dotClass = anyIssue ? 'warn' : 'ok';
 
@@ -2751,10 +2768,19 @@ function renderInBothCard(team) {
     var pe = team.roster[p];
     if (pe.status === 'both') {
       var skillCls = pe.skillMismatch ? 'mismatch num' : 'num';
+      // Highlight Form Player and TMS Player cells when the name or APA
+      // differs between sources — catches "AJ Price vs Anthony Price"
+      // style discrepancies that used to slip through as clean.
+      var formCellCls = (pe.nameMismatch || pe.apaMismatch) ? 'mismatch' : '';
+      var tmsCellCls  = (pe.nameMismatch || pe.apaMismatch) ? 'mismatch' : '';
+      var hasIssue = pe.skillMismatch || pe.nameMismatch || pe.apaMismatch;
+      var statusBadge = hasIssue
+        ? '<span class="p-status warn">Check</span>'
+        : '<span class="p-status ok">OK</span>';
       html += '<tr>'
-           + '<td><span class="p-status ok">OK</span></td>'
-           + '<td>' + esc(pe.formPlayer.name) + ' <span class="p-apa">#' + esc(pe.formPlayer.apa) + '</span></td>'
-           + '<td>' + esc(pe.tmsName) + ' <span class="p-apa">#' + esc(pe.tmsApa) + '</span></td>'
+           + '<td>' + statusBadge + '</td>'
+           + '<td class="' + formCellCls + '">' + esc(pe.formPlayer.name) + ' <span class="p-apa">#' + esc(pe.formPlayer.apa) + '</span></td>'
+           + '<td class="' + tmsCellCls + '">' + esc(pe.tmsName) + ' <span class="p-apa">#' + esc(pe.tmsApa) + '</span></td>'
            + '<td class="' + skillCls + '">' + esc(pe.formPlayer.skill) + '</td>'
            + '<td class="' + skillCls + '">' + esc(pe.tmsSkill) + '</td>'
            + '</tr>';
