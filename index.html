@@ -2309,31 +2309,7 @@ async function loadAndCompare() {
       if (!usedTmsKeys[mk2]) tmsOnly.push(rec2);
     }
 
-    // Build team groups (team events only). Each team contains its
-    // signups, each decorated with match status + TMS record if matched.
-    var teams = [];
-    if (def.hasTeam) {
-      var matchedBySigKey = {};
-      for (var m = 0; m < matched.length; m++) {
-        var msig = matched[m].form;
-        var mkk = msig.apaNorm || ('name:' + msig.nameNorm);
-        matchedBySigKey[mkk] = matched[m];
-      }
-      Object.keys(teamMap).sort().forEach(function(tname) {
-        var ps = teamMap[tname].map(function(sig3) {
-          var key = sig3.apaNorm || ('name:' + sig3.nameNorm);
-          var mrow = matchedBySigKey[key] || null;
-          return {
-            sig: sig3,
-            matched: !!mrow,
-            flagged: mrow ? isFlagged(mrow) : false,
-            tms: mrow ? mrow.tms : null,
-            via: mrow ? mrow.via : ''
-          };
-        });
-        teams.push({ name: tname, players: ps });
-      });
-    }
+    // (Legacy `teams` grouping was removed — replaced by teamComparison.)
 
     // For team events, also build the team-level comparison (In both /
     // Form only / TMS only) using TTeam.db + TNUM1..7 on player records.
@@ -2346,7 +2322,6 @@ async function loadAndCompare() {
       matched: matched,
       unmatched: unmatched,
       tmsOnly: tmsOnly,
-      teams: teams,
       teamComparison: teamComparison
     };
     saveState();
