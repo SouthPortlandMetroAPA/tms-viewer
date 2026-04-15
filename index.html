@@ -626,7 +626,7 @@
         <input type="text" id="searchInput" placeholder="Search by name or APA #..." oninput="renderTable()">
         <div class="row-count" id="rowCount"></div>
         <button type="button" class="btn btn-outline" onclick="exportCsv()">&#11015; Export CSV</button>
-        <button type="button" class="btn btn-outline" onclick="exportAllPlayers()">&#11015; All Players (APA#, Name)</button>
+        <button type="button" class="btn btn-outline" onclick="exportAllPlayers()">&#11015; All Players (APA#, Name, SL)</button>
       </div>
 
       <div class="table-wrap">
@@ -671,7 +671,7 @@
     </div>
   </div>
 
-  <div class="footer">TMS Viewer v0.22 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
+  <div class="footer">TMS Viewer v0.23 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -1645,7 +1645,10 @@ function exportCsv() {
   var s = S();
   var tbl = s.detected ? s.tables[s.detected] : null;
   if (!tbl) return;
-  var cols = getColumns(s.detected).filter(function(c) { return tbl.fieldNames.indexOf(c) !== -1; });
+  // Allow __SKILL__ through the filter (it's synthetic, not in fieldNames)
+  var cols = getColumns(s.detected).filter(function(c) {
+    return c === SKILL_COL || tbl.fieldNames.indexOf(c) !== -1;
+  });
   var q = (s.searchInput || '').toLowerCase();
   var rows = tbl.records;
   if (q) rows = rows.filter(function(r) {
@@ -1657,7 +1660,11 @@ function exportCsv() {
 
   var csv = cols.map(function(c) { return csvQuote(labelFor(c)); }).join(',');
   for (var i = 0; i < rows.length; i++) {
-    var line = cols.map(function(c) { return csvQuote(rows[i][c]); }).join(',');
+    var line = cols.map(function(c) {
+      // Synthetic skill column: use the computed value (with override)
+      if (c === SKILL_COL) return csvQuote(computeTmsSkill(rows[i]).value);
+      return csvQuote(rows[i][c]);
+    }).join(',');
     csv += '\r\n' + line;
   }
   downloadCompareCsv('tms_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', csv);
