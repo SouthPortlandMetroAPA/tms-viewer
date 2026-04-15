@@ -3146,7 +3146,8 @@ function exportAllPlayers() {
       seen[apa] = true;
       var first = (r.FIRST || '').trim();
       var last = (r.LAST || '').trim();
-      if (first || last) rows.push(apa + '\t' + first + '\t' + last);
+      var skill = computeTmsSkill(r).value || '';
+      if (first || last) rows.push(apa + '\t' + first + '\t' + last + '\t' + skill);
     }
   });
 
