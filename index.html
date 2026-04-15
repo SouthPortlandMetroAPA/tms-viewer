@@ -3123,35 +3123,41 @@ function exportUnmatchedCsv() {
   downloadCompareCsv('unmatched_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', out);
 }
 
-// Export all unique players from the current event's TMS table as
+// Export all unique players across ALL events' TMS tables as
 // tab-separated APA#, FirstName, LastName — ready to paste directly
-// into the Rush Hour Raffle admin player import box.
+// into the Rush Hour Raffle admin player import box. Deduped by APA#
+// so a player appearing in singles + early bird + 3-person only gets
+// one row.
 function exportAllPlayers() {
-  var s = S();
-  var tbl = s.detected ? s.tables[s.detected] : null;
-  if (!tbl || !tbl.records.length) { alert('No TMS data loaded.'); return; }
-
-  // Dedupe by APA# (a player can appear on multiple teams)
   var seen = {};
   var rows = [];
-  for (var i = 0; i < tbl.records.length; i++) {
-    var r = tbl.records[i];
-    var apa = (r.APACARD || '').trim();
-    if (!apa || seen[apa]) continue;
-    seen[apa] = true;
-    var first = (r.FIRST || '').trim();
-    var last = (r.LAST || '').trim();
-    if (first || last) rows.push(apa + '\t' + first + '\t' + last);
-  }
+  var eventCount = 0;
 
-  if (rows.length === 0) { alert('No players with names found.'); return; }
+  EVENTS.forEach(function(ev) {
+    var s = state[ev.key];
+    if (!s || !s.detected) return;
+    var tbl = s.tables[s.detected];
+    if (!tbl || !tbl.records.length) return;
+    eventCount++;
+    for (var i = 0; i < tbl.records.length; i++) {
+      var r = tbl.records[i];
+      var apa = (r.APACARD || '').trim();
+      if (!apa || seen[apa]) continue;
+      seen[apa] = true;
+      var first = (r.FIRST || '').trim();
+      var last = (r.LAST || '').trim();
+      if (first || last) rows.push(apa + '\t' + first + '\t' + last);
+    }
+  });
+
+  if (rows.length === 0) { alert('No TMS data loaded in any event.'); return; }
 
   var tsv = rows.join('\r\n');
   var blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'players_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.tsv';
+  a.download = 'all_players_' + new Date().toISOString().slice(0, 10) + '.tsv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
