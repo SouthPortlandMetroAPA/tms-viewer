@@ -706,7 +706,7 @@ var EVENTS = [
 ];
 
 var DEFAULT_SHEET_ID = '1haG5Vu7mgqjg7e1Nyt-SLnBu-6s7gMRxUf7svkxKvcY';
-var DEFAULT_SHEET_TAB = 'All Signups';
+var DEFAULT_SHEET_TAB = 'Validation';
 
 // Default column letters per event. Only singles has fully known columns
 // (G/H/J) from the earlier session work. Other events default empty so
@@ -983,7 +983,11 @@ function restoreState() {
       s.detected = p.detected || null;
       s.loadedFilename = p.loadedFilename || '';
       s.teamsMap = p.teamsMap || {};
-      if (p.sheetConfig) s.sheetConfig = p.sheetConfig;
+      if (p.sheetConfig) {
+        s.sheetConfig = p.sheetConfig;
+        // Migrate saved configs from old default "All Signups" to "Validation"
+        if (s.sheetConfig.tabName === 'All Signups') s.sheetConfig.tabName = 'Validation';
+      }
       // lastCompare and filters are ephemeral — reset on restore
       s.lastCompare = { matched: [], unmatched: [], tmsOnly: [], teams: [], teamComparison: null };
       s.justAddedApa = [];
