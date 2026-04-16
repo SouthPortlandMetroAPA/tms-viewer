@@ -639,8 +639,11 @@
       <!-- Teams section (populated when TTeam.db has rows) -->
       <div id="teamsSection" class="hidden" style="margin-top:24px">
         <div class="compare-section-title">Teams from TMS<span class="count" id="teamsCount"></span></div>
-        <div class="hint" style="color:var(--muted);font-size:0.8rem;margin-bottom:8px">
-          Rosters built by joining TTeam.db team numbers to TNUM1..7 fields in the player table.
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <div class="hint" style="color:var(--muted);font-size:0.8rem;flex:1">
+            Rosters built by joining TTeam.db team numbers to TNUM1..7 fields in the player table.
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="exportTeamsCsv()">&#11015; Export Teams CSV</button>
         </div>
         <div id="teamsBody"></div>
       </div>
@@ -671,7 +674,7 @@
     </div>
   </div>
 
-  <div class="footer">TMS Viewer v0.23 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
+  <div class="footer">TMS Viewer v0.25 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -3139,6 +3142,66 @@ function exportUnmatchedCsv() {
 // into the Rush Hour Raffle admin player import box. Deduped by APA#
 // so a player appearing in singles + early bird + 3-person only gets
 // one row.
+// Export teams CSV: one row per team with team number, team name,
+// then player 1 APA/first/last, player 2 APA/first/last, etc.
+function exportTeamsCsv() {
+  var s = S();
+  var tbl = s.detected ? s.tables[s.detected] : null;
+  var map = s.teamsMap || {};
+  var teamKeys = Object.keys(map).sort();
+  if (!tbl || teamKeys.length === 0) { alert('No team data loaded.'); return; }
+
+  // Build rosters: teamNum → [player records]
+  var rosters = {};
+  for (var i = 0; i < tbl.records.length; i++) {
+    var r = tbl.records[i];
+    for (var t = 1; t <= 7; t++) {
+      var tnum = r['TNUM' + t];
+      if (tnum == null || tnum === '' || tnum === '0') continue;
+      var key = String(tnum).trim();
+      if (!map[key]) continue;
+      if (!rosters[key]) rosters[key] = [];
+      // Dedup within team
+      var apa = (r.APACARD || '').trim();
+      var already = rosters[key].some(function(p) { return (p.APACARD || '').trim() === apa; });
+      if (!already) rosters[key].push(r);
+    }
+  }
+
+  // Find max player count across all teams for column headers
+  var maxPlayers = 0;
+  teamKeys.forEach(function(k) {
+    var count = rosters[k] ? rosters[k].length : 0;
+    if (count > maxPlayers) maxPlayers = count;
+  });
+  if (maxPlayers === 0) { alert('No players rostered on any team.'); return; }
+
+  // Build header row
+  var headers = ['Team Number', 'Team Name'];
+  for (var p = 1; p <= maxPlayers; p++) {
+    headers.push('Player ' + p + ' APA#', 'Player ' + p + ' First', 'Player ' + p + ' Last');
+  }
+  var csv = headers.map(csvQuote).join(',');
+
+  // Build data rows
+  for (var ti = 0; ti < teamKeys.length; ti++) {
+    var num = teamKeys[ti];
+    var roster = rosters[num] || [];
+    var row = [num, map[num]];
+    for (var pi = 0; pi < maxPlayers; pi++) {
+      if (pi < roster.length) {
+        var pl = roster[pi];
+        row.push((pl.APACARD || '').trim(), (pl.FIRST || '').trim(), (pl.LAST || '').trim());
+      } else {
+        row.push('', '', '');
+      }
+    }
+    csv += '\r\n' + row.map(csvQuote).join(',');
+  }
+
+  downloadCompareCsv('teams_' + currentEvent + '_' + new Date().toISOString().slice(0, 10) + '.csv', csv);
+}
+
 function exportAllPlayers() {
   var seen = {};
   var rows = [];
