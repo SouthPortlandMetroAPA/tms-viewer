@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#c2b280">
+  <title>PDF Roster Parser — TMS Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --primary: #c2b280; --primary-dark: #b5a574; --bg: #f5f0e8;
+      --text: #000; --card: #fff; --muted: #666; --border: #d4c9a8;
+      --radius: 10px; --spacing: 4px; --success: #2e7d32; --danger: #c0392b;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px; line-height: 1.5;
+      background: var(--bg); color: var(--text);
+    }
+    .page { max-width: 1200px; margin: 0 auto; padding: calc(var(--spacing) * 4); }
+
+    .header {
+      background: var(--primary);
+      padding: calc(var(--spacing) * 5) calc(var(--spacing) * 4) calc(var(--spacing) * 6);
+      text-align: center; border-radius: var(--radius);
+      margin-bottom: calc(var(--spacing) * 4);
+      position: relative; overflow: hidden;
+    }
+    .header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+    .header h1 .ver { font-size: 0.55em; font-weight: 400; opacity: 0.7; }
+    .header .subtitle { font-size: 1rem; font-style: italic; margin-top: 4px; }
+    .header .back-link {
+      position: absolute; top: 10px; left: 12px;
+      background: rgba(255,255,255,0.55); color: #000;
+      font-size: 0.75rem; font-weight: 700;
+      padding: 6px 12px; border-radius: 999px;
+      text-decoration: none; letter-spacing: 0.04em;
+    }
+    .header .back-link:hover { background: #fff; }
+    .header .wave {
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 12px;
+      background: var(--bg);
+      -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M0,6 Q12.5,0 25,6 T50,6 T75,6 T100,6 L100,12 L0,12 Z' fill='%23000'/%3E%3C/svg%3E");
+      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M0,6 Q12.5,0 25,6 T50,6 T75,6 T100,6 L100,12 L0,12 Z' fill='%23000'/%3E%3C/svg%3E");
+      -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+    }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: calc(var(--spacing) * 6);
+      margin-bottom: calc(var(--spacing) * 4); box-shadow: var(--shadow);
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: calc(var(--spacing) * 10) calc(var(--spacing) * 6);
+      text-align: center; background: #faf8f3; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .drop-zone:hover { border-color: var(--primary); background: #f5efe0; }
+    .drop-zone.dragging { border-color: var(--primary-dark); background: #efe6cc; }
+    .drop-zone .icon { font-size: 3rem; display: block; margin-bottom: 8px; }
+    .drop-zone .hint { color: var(--muted); font-size: 0.85rem; }
+    .drop-zone input { display: none; }
+
+    .status-line {
+      padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+      border-radius: var(--radius); margin-bottom: calc(var(--spacing) * 3);
+      font-size: 0.9rem; display: none;
+    }
+    .status-line.shown { display: block; }
+    .status-line.ok { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status-line.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .status-line.info { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .btn {
+      display: inline-block; min-height: 44px; padding: 8px 20px;
+      font: inherit; font-size: 0.95rem; font-weight: 700;
+      border: none; border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: #000; border: 1px solid var(--border); }
+    .btn-outline:hover { background: #faf8f3; }
+
+    .search-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+    .search-row input[type="text"] {
+      flex: 1; min-width: 200px; min-height: 44px; padding: 8px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font: inherit; font-size: 1rem; background: #fff;
+    }
+    .search-row input:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(194,178,128,0.25);
+    }
+    .row-count { font-size: 0.85rem; color: var(--muted); padding: 0 8px; }
+
+    .table-wrap { overflow-x: auto; }
+    .table {
+      width: 100%; border-collapse: collapse; font-size: 0.9rem; background: #fff;
+    }
+    .table th, .table td {
+      padding: 8px 12px; border-bottom: 1px solid #f0e9d4;
+      text-align: left; white-space: nowrap;
+    }
+    .table th {
+      background: #faf8f3; font-weight: 700; font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      position: sticky; top: 0; cursor: pointer; user-select: none;
+    }
+    .table th:hover { background: #f0e9d4; }
+    .table th.sort-asc::after { content: ' \25B2'; font-size: 0.7em; }
+    .table th.sort-desc::after { content: ' \25BC'; font-size: 0.7em; }
+    .table tbody tr:nth-child(even) { background: #fdfbf6; }
+    .table tbody tr:hover { background: #faf3e0; }
+    .table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .footer { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 16px 0; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="header">
+    <a class="back-link" href="index.html">&larr; TMS Viewer</a>
+    <h1>PDF Roster Parser <span class="ver">v0.27</span></h1>
+    <div class="subtitle">Extract players from APA roster PDFs</div>
+    <div class="wave"></div>
+  </header>
+
+  <div class="status-line" id="status"></div>
+
+  <div class="card" id="dropCard">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="icon">&#128196;</span>
+      <div><strong>Drop an APA Roster & Handicap Report PDF here</strong></div>
+      <div class="hint">or click to browse. Extracts APA#, name, and skill level from every player.</div>
+      <input type="file" id="fileInput" accept=".pdf">
+    </div>
+  </div>
+
+  <div class="card hidden" id="resultsCard">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Search by name or APA#..." oninput="renderTable()">
+      <div class="row-count" id="rowCount"></div>
+      <button type="button" class="btn btn-outline" onclick="exportPlayersCsv()">&#11015; Export Players CSV</button>
+      <button type="button" class="btn btn-outline" onclick="exportTeamsCsv()">&#11015; Export Teams CSV</button>
+      <button type="button" class="btn btn-outline" onclick="exportPlayersTsv()">&#11015; Players TSV (paste to Rush Hour)</button>
+      <button type="button" class="btn btn-outline" onclick="resetData()">Upload new PDF</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="dataTable">
+        <thead><tr id="dataHead"></tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">TMS Viewer — PDF Roster Parser v0.27</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// PDF Roster Parser
+// ════════════════════════════════════════════════════════════════════
+// Extracts player data from APA "Roster & Handicap Report" PDFs.
+//
+// PDF structure per team block:
+//   {5-digit team#}  {team name}    O {number}
+//   FROM:
+//     Skl Number Name
+//       {1-digit SL} {5-digit member#}  {Last}, {First}
+//
+// The 5-digit member number is LOCAL to the area. The full 8-digit
+// APA number = first 3 digits of team number (area code) + 5-digit
+// member number. E.g. team 97201 + member 18712 = APA 97218712.
+// ════════════════════════════════════════════════════════════════════
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+var allPlayers = [];  // { apa, first, last, skill, teamNum, teamName }
+var currentSort = { col: null, dir: 'asc' };
+
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+
+function setStatus(type, msg) {
+  var el = document.getElementById('status');
+  el.innerHTML = msg;
+  el.className = 'status-line shown ' + (type || '');
+}
+function clearStatus() {
+  var el = document.getElementById('status');
+  el.className = 'status-line'; el.textContent = '';
+}
+
+// ─── Drop zone ────────────────────────────────────────────────────
+(function wireDrop() {
+  var zone = document.getElementById('dropZone');
+  var input = document.getElementById('fileInput');
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('dragging'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.classList.remove('dragging');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', function() {
+    if (input.files && input.files.length > 0) handleFile(input.files[0]);
+  });
+})();
+
+// ─── PDF parsing ──────────────────────────────────────────────────
+async function handleFile(file) {
+  clearStatus();
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    setStatus('err', 'Please drop a PDF file.');
+    return;
+  }
+  setStatus('info', 'Reading ' + esc(file.name) + '...');
+
+  try {
+    var arrayBuf = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+
+    var fullText = '';
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var page = await pdf.getPage(p);
+      var content = await page.getTextContent();
+      // Build lines from the text items, preserving approximate layout
+      var items = content.items;
+      var lines = [];
+      var lastY = null;
+      var currentLine = '';
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var y = Math.round(item.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 3) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        currentLine += (currentLine ? '  ' : '') + item.str;
+        lastY = y;
+      }
+      if (currentLine) lines.push(currentLine);
+      fullText += lines.join('\n') + '\n';
+    }
+
+    allPlayers = parseRosterText(fullText);
+
+    if (allPlayers.length === 0) {
+      setStatus('err', 'No players found. Make sure this is an APA Roster & Handicap Report PDF.');
+      return;
+    }
+
+    var teamCount = {};
+    allPlayers.forEach(function(p) { teamCount[p.teamNum] = true; });
+
+    setStatus('ok', 'Extracted <strong>' + allPlayers.length + '</strong> players from <strong>' +
+      Object.keys(teamCount).length + '</strong> teams (' + pdf.numPages + ' pages).');
+
+    document.getElementById('dropCard').classList.add('hidden');
+    document.getElementById('resultsCard').classList.remove('hidden');
+    renderTable();
+  } catch (e) {
+    console.error(e);
+    setStatus('err', 'Could not parse PDF: ' + esc(e.message || e));
+  }
+}
+
+function parseRosterText(text) {
+  var players = [];
+  var lines = text.split('\n');
+  var currentTeamNum = '';
+  var currentTeamName = '';
+  var currentAreaCode = '';
+
+  // Team header pattern: "97201  Bourbon Legends  O  0000"
+  // Flexible: 5-digit number, then team name, then O followed by digits
+  var teamRe = /^(\d{5})\s+(.+?)\s+O\s+\d+/;
+
+  // Player line pattern: "5 18712  Chandler, Christine"
+  // Skill (1 digit), member# (5 digits), Last, First
+  var playerRe = /^\s*(\d)\s+(\d{5})\s+(.+)/;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    // Skip known non-data lines
+    if (/^(FROM|Skl\s+Number|N\s*=|^\*\s*=|April|8-Ball|9-Ball|Roster|Handicap)/i.test(line)) continue;
+
+    var teamMatch = line.match(teamRe);
+    if (teamMatch) {
+      currentTeamNum = teamMatch[1];
+      currentTeamName = teamMatch[2].trim();
+      // Area code = first 3 digits of team number
+      currentAreaCode = currentTeamNum.substring(0, 3);
+      continue;
+    }
+
+    var playerMatch = line.match(playerRe);
+    if (playerMatch && currentTeamNum) {
+      var skill = playerMatch[1];
+      var memberNum = playerMatch[2];
+      var nameStr = playerMatch[3].trim();
+
+      // Full 8-digit APA = area code (3) + member number (5)
+      var fullApa = currentAreaCode + memberNum;
+
+      // Name is "Last, First" — split on first comma
+      var commaIdx = nameStr.indexOf(',');
+      var last = commaIdx >= 0 ? nameStr.substring(0, commaIdx).trim() : nameStr;
+      var first = commaIdx >= 0 ? nameStr.substring(commaIdx + 1).trim() : '';
+
+      players.push({
+        apa: fullApa,
+        first: first,
+        last: last,
+        skill: skill,
+        teamNum: currentTeamNum,
+        teamName: currentTeamName
+      });
+    }
+  }
+
+  return players;
+}
+
+// ─── Table rendering ──────────────────────────────────────────────
+var COLUMNS = [
+  { key: 'apa', label: 'APA #' },
+  { key: 'first', label: 'First' },
+  { key: 'last', label: 'Last' },
+  { key: 'skill', label: 'SL', numeric: true },
+  { key: 'teamNum', label: 'Team #' },
+  { key: 'teamName', label: 'Team Name' }
+];
+
+function renderTable() {
+  var q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  var rows = allPlayers;
+  if (q) {
+    rows = rows.filter(function(r) {
+      return r.first.toLowerCase().indexOf(q) !== -1
+        || r.last.toLowerCase().indexOf(q) !== -1
+        || r.apa.indexOf(q) !== -1
+        || r.teamName.toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  if (currentSort.col) {
+    var mult = currentSort.dir === 'desc' ? -1 : 1;
+    var col = currentSort.col;
+    rows = rows.slice().sort(function(a, b) {
+      var av = a[col] || '', bv = b[col] || '';
+      if (COLUMNS.find(function(c){return c.key===col;}).numeric) {
+        return (parseInt(av,10) - parseInt(bv,10)) * mult;
+      }
+      return String(av).toLowerCase().localeCompare(String(bv).toLowerCase()) * mult;
+    });
+  }
+
+  var head = document.getElementById('dataHead');
+  head.innerHTML = COLUMNS.map(function(c) {
+    var cls = currentSort.col === c.key ? (currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    return '<th class="' + cls + '" onclick="sortBy(\'' + c.key + '\')">' + esc(c.label) + '</th>';
+  }).join('');
+
+  var body = document.getElementById('dataBody');
+  body.innerHTML = rows.map(function(r) {
+    return '<tr>' + COLUMNS.map(function(c) {
+      var cls = c.numeric ? ' class="num"' : '';
+      return '<td' + cls + '>' + esc(r[c.key]) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  document.getElementById('rowCount').textContent = rows.length + ' / ' + allPlayers.length + ' players';
+}
+
+function sortBy(col) {
+  if (currentSort.col === col) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  else { currentSort.col = col; currentSort.dir = 'asc'; }
+  renderTable();
+}
+
+// ─── Exports ──────────────────────────────────────────────────────
+function csvQuote(v) {
+  if (v == null) return '';
+  var s = String(v);
+  if (/[",\r\n]/.test(s) || /^\s|\s$/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function downloadFile(filename, content, type) {
+  var blob = new Blob([content], { type: type });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
+function exportPlayersCsv() {
+  if (!allPlayers.length) return;
+  var csv = '\ufeff' + ['APA #','First','Last','Skill Level','Team #','Team Name'].map(csvQuote).join(',');
+  allPlayers.forEach(function(r) {
+    csv += '\r\n' + [r.apa, r.first, r.last, r.skill, r.teamNum, r.teamName].map(csvQuote).join(',');
+  });
+  downloadFile('roster_players_' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv;charset=utf-8;');
+}
+
+function exportTeamsCsv() {
+  if (!allPlayers.length) return;
+  // Group by team
+  var teams = {};
+  allPlayers.forEach(function(p) {
+    if (!teams[p.teamNum]) teams[p.teamNum] = { name: p.teamName, players: [] };
+    teams[p.teamNum].players.push(p);
+  });
+  var keys = Object.keys(teams).sort();
+  var maxPlayers = 0;
+  keys.forEach(function(k) { if (teams[k].players.length > maxPlayers) maxPlayers = teams[k].players.length; });
+
+  var headers = ['Team Number','Team Name'];
+  for (var i = 1; i <= maxPlayers; i++) {
+    headers.push('Player ' + i + ' APA#', 'Player ' + i + ' First', 'Player ' + i + ' Last', 'Player ' + i + ' SL');
+  }
+  var csv = '\ufeff' + headers.map(csvQuote).join(',');
+  keys.forEach(function(k) {
+    var t = teams[k];
+    var row = [k, t.name];
+    for (var j = 0; j < maxPlayers; j++) {
+      if (j < t.players.length) {
+        var pl = t.players[j];
+        row.push(pl.apa, pl.first, pl.last, pl.skill);
+      } else {
+        row.push('','','','');
+      }
+    }
+    csv += '\r\n' + row.map(csvQuote).join(',');
+  });
+  downloadFile('roster_teams_' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv;charset=utf-8;');
+}
+
+function exportPlayersTsv() {
+  if (!allPlayers.length) return;
+  // Tab-separated APA, First, Last — ready to paste into Rush Hour Raffle admin
+  var tsv = allPlayers.map(function(r) {
+    return r.apa + '\t' + r.first + '\t' + r.last;
+  }).join('\r\n');
+  downloadFile('roster_rush_hour_' + new Date().toISOString().slice(0,10) + '.tsv', tsv, 'text/tab-separated-values;charset=utf-8;');
+}
+
+function resetData() {
+  allPlayers = [];
+  currentSort = { col: null, dir: 'asc' };
+  document.getElementById('resultsCard').classList.add('hidden');
+  document.getElementById('dropCard').classList.remove('hidden');
+  document.getElementById('fileInput').value = '';
+  clearStatus();
+}
+</script>
+</body>
+</html>
