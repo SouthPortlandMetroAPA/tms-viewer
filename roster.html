@@ -232,33 +232,77 @@ async function handleFile(file) {
     var arrayBuf = await file.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
 
+    // The PDF has a 3-column layout. pdf.js returns text items with
+    // (x, y) positions. To reconstruct lines correctly we:
+    //   1. Collect all text items per page with their coordinates
+    //   2. Sort by Y (top to bottom), then X (left to right)
+    //   3. Group into lines by Y proximity (within ~5px = same line)
+    //   4. Within each line, sort by X and join with spaces
+    // This handles the multi-column layout because items from the same
+    // visual row (even across columns) share the same Y coordinate.
     var fullText = '';
     for (var p = 1; p <= pdf.numPages; p++) {
       var page = await pdf.getPage(p);
       var content = await page.getTextContent();
-      // Build lines from the text items, preserving approximate layout
-      var items = content.items;
+      var items = content.items.filter(function(it) { return it.str.trim(); });
+
+      // Sort: Y descending (PDF Y=0 is bottom), then X ascending
+      items.sort(function(a, b) {
+        var dy = b.transform[5] - a.transform[5]; // descending Y = top first
+        if (Math.abs(dy) > 3) return dy;
+        return a.transform[4] - b.transform[4]; // ascending X = left first
+      });
+
+      // Group into lines by Y proximity
       var lines = [];
-      var lastY = null;
-      var currentLine = '';
+      var curLine = [];
+      var curY = null;
       for (var i = 0; i < items.length; i++) {
-        var item = items[i];
-        var y = Math.round(item.transform[5]);
-        if (lastY !== null && Math.abs(y - lastY) > 3) {
-          lines.push(currentLine);
-          currentLine = '';
+        var y = items[i].transform[5];
+        if (curY !== null && Math.abs(y - curY) > 3) {
+          lines.push(curLine);
+          curLine = [];
         }
-        currentLine += (currentLine ? '  ' : '') + item.str;
-        lastY = y;
+        curLine.push(items[i]);
+        curY = y;
       }
-      if (currentLine) lines.push(currentLine);
-      fullText += lines.join('\n') + '\n';
+      if (curLine.length) lines.push(curLine);
+
+      // For each line, sort items by X and detect column gaps.
+      // Items separated by a large X gap (>50px) are in different
+      // columns and should be treated as separate logical lines.
+      for (var li = 0; li < lines.length; li++) {
+        var lineItems = lines[li].sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+        var segments = [[]];
+        for (var j = 0; j < lineItems.length; j++) {
+          if (j > 0) {
+            var prevEnd = lineItems[j-1].transform[4] + (lineItems[j-1].width || 0);
+            var gap = lineItems[j].transform[4] - prevEnd;
+            if (gap > 50) {
+              // Column break — start a new segment
+              segments.push([]);
+            }
+          }
+          segments[segments.length - 1].push(lineItems[j].str);
+        }
+        // Each segment becomes its own text line
+        for (var s = 0; s < segments.length; s++) {
+          var text = segments[s].join(' ').trim();
+          if (text) fullText += text + '\n';
+        }
+      }
+      fullText += '\n';
     }
+
+    // Debug: store fullText so we can inspect if parsing fails
+    window._lastPdfText = fullText;
 
     allPlayers = parseRosterText(fullText);
 
     if (allPlayers.length === 0) {
-      setStatus('err', 'No players found. Make sure this is an APA Roster & Handicap Report PDF.');
+      // Show first 500 chars of extracted text to help debug
+      var preview = fullText.substring(0, 500).replace(/</g, '&lt;').replace(/\n/g, '<br>');
+      setStatus('err', 'No players found. Extracted text preview:<br><pre style="font-size:0.75rem;max-height:200px;overflow:auto;background:#fff;padding:8px;border:1px solid #ddd;margin-top:8px;white-space:pre-wrap">' + preview + '</pre>');
       return;
     }
 
@@ -285,19 +329,22 @@ function parseRosterText(text) {
   var currentAreaCode = '';
 
   // Team header pattern: "97201  Bourbon Legends  O  0000"
-  // Flexible: 5-digit number, then team name, then O followed by digits
-  var teamRe = /^(\d{5})\s+(.+?)\s+O\s+\d+/;
+  // Also handles: "97201 Bourbon Legends O 0000"
+  // The "O 0000" part may or may not be present in extracted text.
+  var teamRe = /^(\d{5})\s+(.+?)(?:\s+O\s+\d+)?$/;
 
-  // Player line pattern: "5 18712  Chandler, Christine"
-  // Skill (1 digit), member# (5 digits), Last, First
+  // Player line: "5 18712  Chandler, Christine" or "5 18712 Chandler, Christine"
+  // Also handles: pdf.js may extract as "518712 Chandler, Christine" (no space after SL)
   var playerRe = /^\s*(\d)\s+(\d{5})\s+(.+)/;
+  // Fallback: skill + member# smashed together (6 digits then name)
+  var playerReFallback = /^\s*(\d)(\d{5})\s+(.+)/;
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
     if (!line) continue;
 
     // Skip known non-data lines
-    if (/^(FROM|Skl\s+Number|N\s*=|^\*\s*=|April|8-Ball|9-Ball|Roster|Handicap)/i.test(line)) continue;
+    if (/^(FROM|Skl|Number|Name|N\s*=|^\*\s*=|April|January|February|March|May|June|July|August|September|October|November|December|8-Ball|9-Ball|Roster|Handicap|Open|Player|address)/i.test(line)) continue;
 
     var teamMatch = line.match(teamRe);
     if (teamMatch) {
@@ -308,7 +355,7 @@ function parseRosterText(text) {
       continue;
     }
 
-    var playerMatch = line.match(playerRe);
+    var playerMatch = line.match(playerRe) || line.match(playerReFallback);
     if (playerMatch && currentTeamNum) {
       var skill = playerMatch[1];
       var memberNum = playerMatch[2];
