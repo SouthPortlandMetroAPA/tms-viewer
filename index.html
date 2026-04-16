@@ -579,7 +579,7 @@
 <div class="page">
 
   <header class="header">
-    <h1>TMS Viewer</h1>
+    <h1>TMS Viewer <span style="font-size:0.55em;font-weight:400;opacity:0.7">v0.26</span></h1>
     <div class="subtitle">APA Tournament Export Viewer</div>
     <a class="admin-link" href="admin.html">Admin</a>
     <div class="wave"></div>
@@ -626,7 +626,8 @@
         <input type="text" id="searchInput" placeholder="Search by name or APA #..." oninput="renderTable()">
         <div class="row-count" id="rowCount"></div>
         <button type="button" class="btn btn-outline" onclick="exportCsv()">&#11015; Export CSV</button>
-        <button type="button" class="btn btn-outline" onclick="exportAllPlayers()">&#11015; All Players (APA#, Name, SL)</button>
+        <button type="button" class="btn btn-outline" onclick="exportTeamsCsv()">&#11015; Teams CSV</button>
+        <button type="button" class="btn btn-outline" onclick="exportAllPlayers()">&#11015; All Players</button>
       </div>
 
       <div class="table-wrap">
@@ -674,7 +675,7 @@
     </div>
   </div>
 
-  <div class="footer">TMS Viewer v0.25 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
+  <div class="footer">TMS Viewer v0.26 &middot; Local-only &middot; <a href="admin.html">Configure columns</a></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
